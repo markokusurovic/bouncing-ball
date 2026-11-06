@@ -1,4 +1,11 @@
-import type { InputSource, Renderer, Rng } from '../src/engine/core/interfaces';
+import type { SoundId } from '../src/engine/audio/sounds';
+import type {
+  AudioPlayer,
+  InputSource,
+  Renderer,
+  Rng,
+  SpriteId,
+} from '../src/engine/core/interfaces';
 import type { Command, GameActions } from '../src/engine/input/commands';
 import type { PaletteKey } from '../src/theme/palette';
 
@@ -11,7 +18,8 @@ export type DrawCall =
       w: number;
       h: number;
       color: PaletteKey;
-    };
+    }
+  | { op: 'sprite'; id: SpriteId; x: number; y: number };
 
 export class FakeRenderer implements Renderer {
   calls: DrawCall[] = [];
@@ -26,6 +34,25 @@ export class FakeRenderer implements Renderer {
     color: PaletteKey,
   ): void {
     this.calls.push({ op: 'rect', x, y, w, h, color });
+  }
+  drawSprite(id: SpriteId, x: number, y: number): void {
+    this.calls.push({ op: 'sprite', id, x, y });
+  }
+}
+
+export class FakeAudio implements AudioPlayer {
+  calls: string[] = [];
+  play(sound: SoundId): void {
+    this.calls.push(sound);
+  }
+  startMusic(): void {
+    this.calls.push('music on');
+  }
+  stopMusic(): void {
+    this.calls.push('music off');
+  }
+  toggleMute(): void {
+    this.calls.push('mute');
   }
 }
 
@@ -60,5 +87,8 @@ export class RecordingActions implements GameActions {
   }
   togglePause(): void {
     this.calls.push('pause');
+  }
+  toggleMute(): void {
+    this.calls.push('mute');
   }
 }

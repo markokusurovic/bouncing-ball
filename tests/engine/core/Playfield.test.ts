@@ -234,26 +234,18 @@ describe('Playfield: bricks', () => {
     expect(ball.vy).toBeGreaterThan(0);
   });
 
-  it('renders bricks with a gap, then the paddle and balls', () => {
+  it('draws brick sprites, then the paddle and balls', () => {
     const gone = brick(10, 50);
     gone.hit();
     const { field } = setup({ bricks: [brick(100, 50), gone] });
     const renderer = new FakeRenderer();
     field.render(renderer);
     const ball = firstBall(field);
-    const { paddle } = field;
     expect(renderer.calls).toEqual([
       { op: 'clear', color: 'playfield' },
-      { op: 'rect', x: 100, y: 50, w: 23, h: 7, color: 'brick1' },
-      {
-        op: 'rect',
-        x: paddle.x,
-        y: paddle.y,
-        w: paddle.width,
-        h: paddle.height,
-        color: 'paddle',
-      },
-      { op: 'rect', x: ball.x - 3, y: ball.y - 3, w: 6, h: 6, color: 'ball' },
+      { op: 'sprite', id: 'brick1', x: 100, y: 50 },
+      { op: 'sprite', id: 'paddle', x: field.paddle.x, y: field.paddle.y },
+      { op: 'sprite', id: 'ball', x: ball.x - 3, y: ball.y - 3 },
     ]);
   });
 });
@@ -364,21 +356,29 @@ describe('Playfield: power-ups', () => {
     expect(field.laserEnabled).toBe(false);
   });
 
-  it('draws capsules, bullets and the laser paddle', () => {
+  it('draws capsules, bullets and the right paddle sprite', () => {
     const { field } = setup();
     field.capsules.acquire()?.drop('slow', 100, 100);
     field.setLaser(true);
     fly(field, 10, 100, 0, -SPEED);
     field.fire();
-    const renderer = new FakeRenderer();
-    field.render(renderer);
-    const colors = renderer.calls.map((call) => call.color);
-    expect(colors).toEqual([
-      'playfield',
-      'powerSlow',
+    const ids = (): string[] => {
+      const renderer = new FakeRenderer();
+      field.render(renderer);
+      return renderer.calls.map((call) =>
+        call.op === 'sprite' ? call.id : call.op,
+      );
+    };
+    expect(ids()).toEqual([
+      'clear',
+      'capsuleSlow',
       'bullet',
       'paddleLaser',
       'ball',
     ]);
+    field.setPaddleWidthFactor(1.5);
+    expect(ids()).toContain('paddleWideLaser');
+    field.setLaser(false);
+    expect(ids()).toContain('paddleWide');
   });
 });

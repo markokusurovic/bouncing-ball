@@ -17,12 +17,16 @@ describe('key map', () => {
     PRESSED_KEYS['Space']?.execute(actions);
     PRESSED_KEYS['KeyP']?.execute(actions);
     PRESSED_KEYS['Escape']?.execute(actions);
+    PRESSED_KEYS['Enter']?.execute(actions);
+    PRESSED_KEYS['KeyM']?.execute(actions);
     expect(actions.calls).toEqual([
       'moveBy -1',
       'moveBy 1',
       'fire',
       'pause',
       'pause',
+      'fire',
+      'mute',
     ]);
   });
 });

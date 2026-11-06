@@ -1,11 +1,20 @@
 import type { Rect } from '../physics/collision';
 import type { PaletteKey } from '../../theme/palette';
+import type { SpriteId } from '../core/interfaces';
+
+const NORMAL_SPRITES: Partial<Record<PaletteKey, SpriteId>> = {
+  brick1: 'brick1',
+  brick2: 'brick2',
+  brick3: 'brick3',
+  brick4: 'brick4',
+};
 
 export type BrickKind = 'normal' | 'silver' | 'metal';
 
 export class Brick implements Rect {
   /** Hits still needed to destroy the brick; Infinity for metal. */
   hitsLeft: number;
+  readonly maxHits: number;
 
   constructor(
     readonly x: number,
@@ -18,6 +27,18 @@ export class Brick implements Rect {
     readonly color: PaletteKey,
   ) {
     this.hitsLeft = hits;
+    this.maxHits = hits;
+  }
+
+  /** Silver bricks look cracked once they have been hit. */
+  get sprite(): SpriteId {
+    if (this.kind === 'metal') return 'brickMetal';
+    if (this.kind === 'silver') {
+      return this.hitsLeft < this.maxHits
+        ? 'brickSilverCracked'
+        : 'brickSilver';
+    }
+    return NORMAL_SPRITES[this.color] ?? 'brick1';
   }
 
   get breakable(): boolean {

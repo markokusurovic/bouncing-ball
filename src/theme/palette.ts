@@ -22,6 +22,14 @@ export const palette = {
   powerMulti: '#f4f4f4',
   powerSlow: '#73eff7',
   powerLaser: '#a7f070',
+  /** Highlight and shadow edges shared by all sprites. */
+  light: '#f4f4f4',
+  shadow: '#29366f',
+  paddleCap: '#b13e53',
+  paddleShade: '#3b5dc9',
+  ballShade: '#94b0c2',
+  capsuleLetter: '#1a1c2c',
+  overlay: '#1a1c2ccc',
   hudText: '#f4f4f4',
   hudAccent: '#ffcd75',
 } as const;

@@ -17,6 +17,15 @@ describe('Brick', () => {
     expect(brick).toMatchObject({ centerX: 12, centerY: 4 });
   });
 
+  it('picks its sprite by kind, color and damage', () => {
+    expect(factory.create('3', 0, 0, 1)?.sprite).toBe('brick3');
+    expect(factory.create('X', 0, 0, 1)?.sprite).toBe('brickMetal');
+    const silver = factory.create('S', 0, 0, 1);
+    expect(silver?.sprite).toBe('brickSilver');
+    silver?.hit();
+    expect(silver?.sprite).toBe('brickSilverCracked');
+  });
+
   it('never breaks metal', () => {
     const brick = new Brick(0, 0, 24, 8, 'metal', Infinity, 0, 'brickMetal');
     expect(brick.hit()).toBe(false);
