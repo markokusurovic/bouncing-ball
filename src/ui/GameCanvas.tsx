@@ -8,8 +8,13 @@ import { CanvasRenderer } from '../render/CanvasRenderer';
 import { computeScale } from '../render/scaling';
 import { palette } from '../theme/palette';
 import { attachBrowserInput } from './attachBrowserInput';
+import { Hud, initialHud, type HudState } from './Hud';
 
-const { width: VIEW_WIDTH, height: VIEW_HEIGHT } = gameConfig.view;
+const {
+  width: VIEW_WIDTH,
+  height: VIEW_HEIGHT,
+  hudHeight: HUD_HEIGHT,
+} = gameConfig.view;
 /** Space kept free around the canvas (border and page margin), in CSS pixels. */
 const MARGIN = 32;
 
@@ -32,6 +37,8 @@ export function GameCanvas(): ReactElement {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // useState holds the scale; updating it re-renders with the new CSS size.
   const [scale, setScale] = useState<number>(currentScale);
+  // The HUD is plain React state, fed by game events (Observer pattern).
+  const [hud, setHud] = useState<HudState>(initialHud);
 
   // useEffect runs after React has put the canvas in the DOM. The empty
   // dependency array means: set the game up once on mount. The function we
@@ -55,11 +62,30 @@ export function GameCanvas(): ReactElement {
       request: (callback) => requestAnimationFrame(callback),
       cancel: (handle) => cancelAnimationFrame(handle),
     });
+
+    // Subscribe before starting so the HUD sees the first events. Each `on`
+    // returns an unsubscribe function, which the cleanup below calls. The
+    // functional form `setHud(h => ...)` always updates the latest state.
+    const { events } = game;
+    const unsubscribe = [
+      events.on('scoreChanged', ({ score, multiplier }) =>
+        setHud((h) => ({ ...h, score, multiplier })),
+      ),
+      events.on('livesChanged', ({ lives }) =>
+        setHud((h) => ({ ...h, lives })),
+      ),
+      events.on('levelStarted', ({ level }) =>
+        setHud((h) => ({ ...h, level, gameOver: false })),
+      ),
+      events.on('gameOver', () => setHud((h) => ({ ...h, gameOver: true }))),
+    ];
+    game.newGame();
     loop.start();
 
     return () => {
       loop.stop();
       detachInput();
+      for (const off of unsubscribe) off();
     };
   }, []);
 
@@ -72,16 +98,18 @@ export function GameCanvas(): ReactElement {
   }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={VIEW_WIDTH}
-      height={VIEW_HEIGHT}
-      className="block border-2 [image-rendering:pixelated]"
-      style={{
-        width: VIEW_WIDTH * scale,
-        height: VIEW_HEIGHT * scale,
-        borderColor: palette.canvasBorder,
-      }}
-    />
+    <div
+      className="relative border-2"
+      style={{ borderColor: palette.canvasBorder }}
+    >
+      <canvas
+        ref={canvasRef}
+        width={VIEW_WIDTH}
+        height={VIEW_HEIGHT}
+        className="block [image-rendering:pixelated]"
+        style={{ width: VIEW_WIDTH * scale, height: VIEW_HEIGHT * scale }}
+      />
+      <Hud hud={hud} scale={scale} height={HUD_HEIGHT} />
+    </div>
   );
 }

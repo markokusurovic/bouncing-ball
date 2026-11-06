@@ -44,11 +44,12 @@ export function circleRectSide(circle: Circle, rect: Rect): Side | null {
 
 /**
  * Keeps the ball inside the left, right and top walls, reflecting its velocity.
- * The bottom is open. Returns true if a wall was hit.
+ * The ceiling is at `top`; the bottom is open. Returns true if a wall was hit.
  */
 export function bounceOffWalls(
   ball: MovingCircle,
   fieldWidth: number,
+  top = 0,
 ): boolean {
   let hit = false;
   if (ball.x - ball.radius < 0) {
@@ -60,8 +61,8 @@ export function bounceOffWalls(
     ball.vx = -Math.abs(ball.vx);
     hit = true;
   }
-  if (ball.y - ball.radius < 0) {
-    ball.y = ball.radius;
+  if (ball.y - ball.radius < top) {
+    ball.y = top + ball.radius;
     ball.vy = Math.abs(ball.vy);
     hit = true;
   }

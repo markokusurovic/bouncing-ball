@@ -59,6 +59,12 @@ describe('bounceOffWalls', () => {
     expect(b).toMatchObject({ vx: 10, vy: 10 });
   });
 
+  it('uses a lowered ceiling when given', () => {
+    const b = ball(50, 17, 5, -10);
+    expect(bounceOffWalls(b, 320, 16)).toBe(true);
+    expect(b).toMatchObject({ y: 19, vy: 10 });
+  });
+
   it('leaves the bottom open and ignores balls inside', () => {
     const b = ball(50, 500, 5, 10);
     expect(bounceOffWalls(b, 320)).toBe(false);
