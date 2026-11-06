@@ -5,186 +5,183 @@ import {
 } from '../../../src/engine/config/gameConfig';
 import { Game } from '../../../src/engine/core/Game';
 import type { GameEvents } from '../../../src/engine/core/events';
+import type { Ball } from '../../../src/engine/entities/Ball';
 import {
   Fire,
   MoveRight,
   MoveTo,
   Pause,
 } from '../../../src/engine/input/commands';
-import { degToRad } from '../../../src/engine/physics/vector';
+import type { LevelGrid } from '../../../src/engine/levels/LevelLoader';
 import { FakeInput, FakeRenderer, fixedRng } from '../../fakes';
 
 const DT = 1 / 120;
+/** One normal brick at the top-left: x 4–28, y 32–40. */
+const ONE_BRICK: LevelGrid = ['1............'];
 
-function setup(config: GameConfig = gameConfig, rngValue = 0.5) {
+function setup(
+  config: GameConfig = gameConfig,
+  levels: readonly LevelGrid[] = [ONE_BRICK, ONE_BRICK],
+) {
   const input = new FakeInput();
   const renderer = new FakeRenderer();
-  const game = new Game({ renderer, input, rng: fixedRng(rngValue), config });
-  const events: (keyof GameEvents)[] = [];
-  game.events.on('ballLaunched', () => events.push('ballLaunched'));
-  game.events.on('paddleHit', () => events.push('paddleHit'));
-  game.events.on('ballLost', () => events.push('ballLost'));
-  return { game, input, renderer, events };
+  const game = new Game({
+    renderer,
+    input,
+    rng: fixedRng(0.5),
+    config,
+    levels,
+  });
+  const log: string[] = [];
+  const record =
+    <K extends keyof GameEvents>(type: K) =>
+    (payload: GameEvents[K]): void => {
+      log.push(`${type} ${JSON.stringify(payload)}`);
+    };
+  game.events.on('livesChanged', record('livesChanged'));
+  game.events.on('levelStarted', record('levelStarted'));
+  game.events.on('levelCleared', record('levelCleared'));
+  game.events.on('gameOver', record('gameOver'));
+  game.newGame();
+  log.length = 0;
+  return { game, input, renderer, log };
+}
+
+function ball(game: Game): Ball {
+  const first = game.playfield.balls[0];
+  if (!first) throw new Error('no ball');
+  return first;
 }
 
 function run(game: Game, updates: number): void {
   for (let i = 0; i < updates; i++) game.update(DT);
 }
 
-/** Puts the ball in flight at a position with a velocity. */
-function fly(game: Game, x: number, y: number, vx: number, vy: number): void {
-  game.ball.launch({ x: vx, y: vy });
-  game.ball.x = x;
-  game.ball.y = y;
+/** Drops the ball below the screen and lets it fall out. */
+function loseBall(game: Game): void {
+  const b = ball(game);
+  b.launch({ x: 0, y: 150 });
+  b.x = 10;
+  b.y = 238;
+  run(game, 10);
+}
+
+/** Aims the ball at the ONE_BRICK brick from below. */
+function hitTheBrick(game: Game): void {
+  const b = ball(game);
+  b.launch({ x: 0, y: -150 });
+  b.x = 16;
+  b.y = 50;
+  run(game, 30);
 }
 
 describe('Game', () => {
-  it('starts with the ball resting on the paddle', () => {
+  it('starts a new game on level 1 with 3 lives and no score', () => {
     const { game } = setup();
-    expect(game.ball.stuck).toBe(true);
-    expect(game.ball.x).toBe(game.paddle.centerX);
-    expect(game.ball.y).toBe(game.paddle.y - game.ball.radius);
+    expect(game.lives).toBe(3);
+    expect(game.level).toBe(1);
+    expect(game.scoring.score).toBe(0);
+    expect(game.playfield.bricks).toHaveLength(1);
+    expect(ball(game).stuck).toBe(true);
   });
 
-  it('keeps the stuck ball on the paddle as it moves', () => {
+  it('moves the paddle and launches the ball through commands', () => {
     const { game, input } = setup();
-    input.push(new MoveTo(50));
-    game.update(DT);
-    expect(game.ball.x).toBe(50);
-  });
-
-  it('moves the paddle with keyboard speed', () => {
-    const { game, input } = setup();
-    const start = game.paddle.x;
+    const start = game.playfield.paddle.x;
     input.push(MoveRight);
     game.update(DT);
-    expect(game.paddle.x).toBeCloseTo(start + gameConfig.paddle.speed * DT);
-  });
-
-  it('launches the ball upwards on Fire, tilted by the RNG', () => {
-    const straight = setup(gameConfig, 0.5);
-    straight.input.push(Fire);
-    straight.game.update(DT);
-    expect(straight.game.ball.stuck).toBe(false);
-    expect(straight.game.ball.vx).toBeCloseTo(0);
-    expect(straight.game.ball.vy).toBeCloseTo(-gameConfig.ball.speed);
-    expect(straight.events).toEqual(['ballLaunched']);
-
-    const tilted = setup(gameConfig, 0.99);
-    tilted.input.push(Fire);
-    tilted.game.update(DT);
-    expect(tilted.game.ball.vx).toBeGreaterThan(0);
-  });
-
-  it('ignores Fire while the ball is in flight', () => {
-    const { game, input, events } = setup();
-    input.push(Fire);
-    game.update(DT);
-    input.push(Fire);
-    game.update(DT);
-    expect(events).toEqual(['ballLaunched']);
-  });
-
-  it('bounces straight up from the paddle center', () => {
-    const { game, events } = setup();
-    fly(game, game.paddle.centerX, 200, 0, gameConfig.ball.speed);
-    run(game, 30);
-    expect(events).toEqual(['paddleHit']);
-    expect(game.ball.vy).toBeLessThan(0);
-    expect(game.ball.vx).toBeCloseTo(0);
-  });
-
-  it('bounces at an angle from near the paddle edge', () => {
-    const { game } = setup();
-    const { paddle } = game;
-    fly(game, paddle.x + paddle.width - 1, 200, 0, gameConfig.ball.speed);
-    run(game, 30);
-    const angle = Math.atan2(game.ball.vx, -game.ball.vy);
-    expect(angle).toBeCloseTo(
-      degToRad(0.95 * gameConfig.bounce.maxAngleDegrees),
-      1,
+    expect(game.playfield.paddle.x).toBeCloseTo(
+      start + gameConfig.paddle.speed * DT,
     );
-  });
-
-  it('enforces the minimum vertical angle on paddle bounces', () => {
-    const config = {
-      ...gameConfig,
-      bounce: { maxAngleDegrees: 89, minVerticalAngleDegrees: 30 },
-    };
-    const { game } = setup(config);
-    fly(game, game.paddle.x + game.paddle.width, 200, 0, gameConfig.ball.speed);
-    run(game, 30);
-    const fromHorizontal = Math.atan2(-game.ball.vy, Math.abs(game.ball.vx));
-    expect(fromHorizontal).toBeCloseTo(degToRad(30));
-  });
-
-  it('pushes the ball out sideways when it hits a paddle end', () => {
-    const { game } = setup();
-    const { paddle } = game;
-    fly(game, paddle.x - 2, paddle.y + 3, 50, 0);
+    input.push(new MoveTo(50), Fire);
     game.update(DT);
-    expect(game.ball.vx).toBeLessThan(0);
-    expect(game.ball.x).toBeLessThanOrEqual(paddle.x - game.ball.radius);
-
-    fly(game, paddle.x + paddle.width + 2, paddle.y + 3, -50, 0);
-    game.update(DT);
-    expect(game.ball.vx).toBeGreaterThan(0);
+    expect(ball(game).stuck).toBe(false);
+    expect(ball(game).vy).toBeLessThan(0);
   });
 
-  it('does not tunnel through the paddle at very high speed', () => {
-    const config = {
-      ...gameConfig,
-      ball: { ...gameConfig.ball, speed: 20000 },
-    };
-    const { game, events } = setup(config);
-    fly(game, game.paddle.centerX, 150, 0, 20000);
-    game.update(DT);
-    expect(events).toEqual(['paddleHit']);
-    expect(game.ball.vy).toBeLessThan(0);
+  it('loses a life when the ball falls out', () => {
+    const { game, log } = setup();
+    loseBall(game);
+    expect(game.lives).toBe(2);
+    expect(log).toEqual(['livesChanged {"lives":2}']);
   });
 
-  it('loses the ball below the screen and puts it back on the paddle', () => {
-    const { game, events } = setup();
-    fly(game, 10, 235, 0, gameConfig.ball.speed);
-    run(game, 60);
-    expect(events).toEqual(['ballLost']);
-    expect(game.ball.stuck).toBe(true);
-    expect(game.ball.x).toBe(game.paddle.centerX);
+  it('ends the game after the last life and restarts on Fire', () => {
+    const { game, input, log } = setup();
+    loseBall(game);
+    loseBall(game);
+    loseBall(game);
+    expect(game.isOver).toBe(true);
+    expect(log.at(-1)).toBe('gameOver {"score":0,"level":1}');
+
+    input.push(Pause, MoveRight);
+    const paddleX = game.playfield.paddle.x;
+    game.update(DT);
+    expect(game.isPaused).toBe(false);
+    expect(game.playfield.paddle.x).toBe(paddleX);
+
+    input.push(Fire);
+    game.update(DT);
+    expect(game.isOver).toBe(false);
+    expect(game.lives).toBe(3);
+  });
+
+  it('clears a level, adds the bonus and starts the next one faster', () => {
+    const { game, log } = setup();
+    const levelOneSpeed = game.playfield.speed;
+    hitTheBrick(game);
+    expect(log).toEqual([
+      'levelCleared {"level":1,"lives":3}',
+      'levelStarted {"level":2}',
+    ]);
+    expect(game.level).toBe(2);
+    expect(game.scoring.score).toBe(50 + 1000 + 3 * 500);
+    expect(game.playfield.speed).toBeGreaterThan(levelOneSpeed);
+    expect(ball(game).stuck).toBe(true);
+  });
+
+  it('awards an extra life at the score threshold', () => {
+    const config = { ...gameConfig, lives: { start: 3, extraLifeEvery: 50 } };
+    const { game } = setup(config, [['1...........1']]);
+    hitTheBrick(game);
+    expect(game.lives).toBe(4);
   });
 
   it('freezes everything while paused and resumes on the next Pause', () => {
     const { game, input } = setup();
-    fly(game, 100, 100, 50, -50);
+    const b = ball(game);
+    b.launch({ x: 50, y: -50 });
+    b.x = 100;
+    b.y = 100;
     input.push(Pause);
     game.update(DT);
     expect(game.isPaused).toBe(true);
-    const paddleX = game.paddle.x;
+    const paddleX = game.playfield.paddle.x;
     input.push(new MoveTo(10), MoveRight, Fire);
     run(game, 10);
-    expect(game.ball).toMatchObject({ x: 100, y: 100 });
-    expect(game.paddle.x).toBe(paddleX);
+    expect(b).toMatchObject({ x: 100, y: 100 });
+    expect(game.playfield.paddle.x).toBe(paddleX);
 
     input.push(Pause);
     game.update(DT);
     expect(game.isPaused).toBe(false);
-    expect(game.ball.x).toBeGreaterThan(100);
+    expect(b.x).toBeGreaterThan(100);
   });
 
-  it('renders the playfield, paddle and ball', () => {
+  it('renders the playfield', () => {
     const { game, renderer } = setup();
     game.render();
-    const { paddle, ball } = game;
-    expect(renderer.calls).toEqual([
-      { op: 'clear', color: 'playfield' },
-      {
-        op: 'rect',
-        x: paddle.x,
-        y: paddle.y,
-        w: paddle.width,
-        h: paddle.height,
-        color: 'paddle',
-      },
-      { op: 'rect', x: ball.x - 3, y: ball.y - 3, w: 6, h: 6, color: 'ball' },
-    ]);
+    expect(renderer.calls[0]).toEqual({ op: 'clear', color: 'playfield' });
+    expect(renderer.calls[1]).toMatchObject({ color: 'brick1' });
+  });
+
+  it('uses the real levels by default', () => {
+    const game = new Game({
+      renderer: new FakeRenderer(),
+      input: new FakeInput(),
+      rng: fixedRng(0.5),
+    });
+    game.newGame();
+    expect(game.playfield.bricks.length).toBeGreaterThan(20);
   });
 });
