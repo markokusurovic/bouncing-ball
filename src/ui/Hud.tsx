@@ -9,7 +9,6 @@ export interface HudState {
   readonly multiplier: number;
   /** Timed power-ups currently running. */
   readonly powerUps: readonly PowerUpType[];
-  readonly gameOver: boolean;
 }
 
 export const initialHud: HudState = {
@@ -18,59 +17,42 @@ export const initialHud: HudState = {
   level: 1,
   multiplier: 1,
   powerUps: [],
-  gameOver: false,
 };
 
 interface HudProps {
   readonly hud: HudState;
+  readonly muted: boolean;
   /** Size of one internal pixel in CSS pixels. */
   readonly scale: number;
   /** Height of the HUD strip in internal pixels. */
   readonly height: number;
 }
 
-/** Score, combo, level and lives drawn over the top strip of the canvas. */
-export function Hud({ hud, scale, height }: HudProps): ReactElement {
+/** Score, combo, level, power-ups and lives over the top strip of the canvas. */
+export function Hud({ hud, muted, scale, height }: HudProps): ReactElement {
+  const accent = { color: palette.hudAccent };
   return (
-    <>
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between font-mono font-bold uppercase"
-        style={{
-          height: height * scale,
-          fontSize: 8 * scale,
-          padding: `0 ${4 * scale}px`,
-          color: palette.hudText,
-        }}
-      >
-        <span>
-          Score {hud.score}
-          {hud.multiplier > 1 && (
-            <span style={{ color: palette.hudAccent }}> ×{hud.multiplier}</span>
-          )}
-        </span>
-        <span>
-          Level {hud.level}
-          <span style={{ color: palette.hudAccent }}>
-            {hud.powerUps.map((type) => ` ${type}`)}
-          </span>
-        </span>
-        <span>Lives {hud.lives}</span>
-      </div>
-      {hud.gameOver && (
-        <div
-          className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center font-mono font-bold uppercase"
-          style={{
-            fontSize: 8 * scale,
-            gap: 4 * scale,
-            color: palette.hudText,
-          }}
-        >
-          <span style={{ fontSize: 16 * scale, color: palette.hudAccent }}>
-            Game over
-          </span>
-          <span>Press Space or click to play again</span>
-        </div>
-      )}
-    </>
+    <div
+      className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between font-mono font-bold uppercase"
+      style={{
+        height: height * scale,
+        fontSize: 8 * scale,
+        padding: `0 ${4 * scale}px`,
+        color: palette.hudText,
+      }}
+    >
+      <span>
+        Score {hud.score}
+        {hud.multiplier > 1 && <span style={accent}> ×{hud.multiplier}</span>}
+      </span>
+      <span>
+        Level {hud.level}
+        <span style={accent}>{hud.powerUps.map((type) => ` ${type}`)}</span>
+      </span>
+      <span>
+        {muted && <span style={accent}>Muted </span>}
+        Lives {hud.lives}
+      </span>
+    </div>
   );
 }

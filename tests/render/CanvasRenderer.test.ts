@@ -3,6 +3,8 @@ import {
   CanvasRenderer,
   type DrawingContext,
 } from '../../src/render/CanvasRenderer';
+import { gameConfig } from '../../src/engine/config/gameConfig';
+import { createSprites } from '../../src/render/sprites/sprites';
 import { palette } from '../../src/theme/palette';
 
 /** Records each rectangle together with the fill style active at that moment. */
@@ -35,5 +37,19 @@ describe('CanvasRenderer', () => {
     const ctx = fakeContext();
     new CanvasRenderer(ctx, 320, 240).fillRect(1.4, 2.6, 5.5, 3.2, 'ball');
     expect(ctx.rects).toEqual([[palette.ball, 1, 3, 6, 3]]);
+  });
+
+  it('draws a sprite as runs at whole-pixel positions', () => {
+    const ctx = fakeContext();
+    const renderer = new CanvasRenderer(ctx, 320, 240, {
+      ...createSprites(gameConfig),
+      bullet: { rows: ['ab', 'bb'], legend: { a: 'ball', b: 'bullet' } },
+    });
+    renderer.drawSprite('bullet', 10.4, 19.6);
+    expect(ctx.rects).toEqual([
+      [palette.ball, 10, 20, 1, 1],
+      [palette.bullet, 11, 20, 1, 1],
+      [palette.bullet, 10, 21, 2, 1],
+    ]);
   });
 });

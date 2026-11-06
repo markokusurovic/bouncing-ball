@@ -92,6 +92,7 @@ src/
 │   ├── scoring/   # ScoreManager, combo
 │   └── audio/     # synth SFX, music sequencer
 ├── render/        # CanvasRenderer, sprites/
+├── audio/         # WebAudioPlayer (Web Audio adapter, mute/volume in localStorage)
 ├── theme/         # palette.ts
 └── storage/       # LocalStorageHighScoreRepository
 tests/             # mirrors src/ structure

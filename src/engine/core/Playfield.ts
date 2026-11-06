@@ -19,17 +19,16 @@ import {
 } from '../powerups/PowerUp';
 import { PowerUpManager } from '../powerups/PowerUpManager';
 import { createPowerUps } from '../powerups/powerUps';
-import type { PaletteKey } from '../../theme/palette';
 import type { EventBus } from './EventBus';
 import type { GameEvents } from './events';
-import type { Renderer, Rng } from './interfaces';
+import type { Renderer, Rng, SpriteId } from './interfaces';
 import { Pool } from './Pool';
 
-const CAPSULE_COLORS: Readonly<Record<PowerUpType, PaletteKey>> = {
-  wide: 'powerWide',
-  multi: 'powerMulti',
-  slow: 'powerSlow',
-  laser: 'powerLaser',
+const CAPSULE_SPRITES: Readonly<Record<PowerUpType, SpriteId>> = {
+  wide: 'capsuleWide',
+  multi: 'capsuleMulti',
+  slow: 'capsuleSlow',
+  laser: 'capsuleLaser',
 };
 
 /**
@@ -202,53 +201,32 @@ export class Playfield implements PowerUpTarget {
   render(renderer: Renderer): void {
     renderer.clear('playfield');
     for (const brick of this.bricks) {
-      if (brick.destroyed) continue;
-      // One pixel less on each axis leaves a visible gap between bricks.
-      renderer.fillRect(
-        brick.x,
-        brick.y,
-        brick.width - 1,
-        brick.height - 1,
-        brick.color,
-      );
+      if (!brick.destroyed) renderer.drawSprite(brick.sprite, brick.x, brick.y);
     }
     for (const capsule of this.capsules.items) {
-      if (!capsule.active) continue;
-      renderer.fillRect(
-        capsule.x,
-        capsule.y,
-        capsule.width,
-        capsule.height,
-        CAPSULE_COLORS[capsule.type],
-      );
+      if (capsule.active) {
+        renderer.drawSprite(
+          CAPSULE_SPRITES[capsule.type],
+          capsule.x,
+          capsule.y,
+        );
+      }
     }
     for (const bullet of this.bullets.items) {
-      if (!bullet.active) continue;
-      renderer.fillRect(
-        bullet.x,
-        bullet.y,
-        bullet.width,
-        bullet.height,
-        'bullet',
-      );
+      if (bullet.active) renderer.drawSprite('bullet', bullet.x, bullet.y);
     }
     const { paddle } = this;
-    renderer.fillRect(
-      paddle.x,
-      paddle.y,
-      paddle.width,
-      paddle.height,
-      this.laser ? 'paddleLaser' : 'paddle',
-    );
+    const wide = paddle.width > this.config.paddle.width;
+    const sprite: SpriteId = this.laser
+      ? wide
+        ? 'paddleWideLaser'
+        : 'paddleLaser'
+      : wide
+        ? 'paddleWide'
+        : 'paddle';
+    renderer.drawSprite(sprite, paddle.x, paddle.y);
     for (const ball of this.balls) {
-      const size = ball.radius * 2;
-      renderer.fillRect(
-        ball.x - ball.radius,
-        ball.y - ball.radius,
-        size,
-        size,
-        'ball',
-      );
+      renderer.drawSprite('ball', ball.x - ball.radius, ball.y - ball.radius);
     }
   }
 

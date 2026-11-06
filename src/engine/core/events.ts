@@ -1,4 +1,5 @@
 import type { PowerUpType } from '../powerups/PowerUp';
+import type { StateName } from '../states/GameState';
 import type { PaletteKey } from '../../theme/palette';
 
 /** Everything the game announces. Score, audio and HUD subscribe to these. */
@@ -19,4 +20,6 @@ export type GameEvents = {
   levelCleared: { level: number; lives: number };
   scoreChanged: { score: number; multiplier: number };
   gameOver: { score: number; level: number };
+  stateChanged: { state: StateName };
+  muteToggled: Record<string, never>;
 };

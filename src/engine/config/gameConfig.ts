@@ -88,6 +88,28 @@ export interface GameConfig {
     readonly bulletHeight: number;
     readonly maxBullets: number;
   };
+  readonly particles: {
+    /** Particles per destroyed brick. */
+    readonly perBrick: number;
+    readonly poolSize: number;
+    readonly minSpeed: number;
+    readonly maxSpeed: number;
+    readonly gravity: number;
+    readonly lifetime: number;
+    readonly size: number;
+  };
+  readonly screens: {
+    /** How long the "level clear" screen stays before the next level. */
+    readonly levelCompleteSeconds: number;
+    /** Fire is ignored this long on the game-over screen, so it isn't skipped by accident. */
+    readonly gameOverDelaySeconds: number;
+  };
+  readonly audio: {
+    readonly defaultVolume: number;
+    /** Loudness of sound effects and music relative to the master volume. */
+    readonly effectsGain: number;
+    readonly musicGain: number;
+  };
   readonly levels: {
     /** Ball speed grows by this fraction per level within a loop. */
     readonly speedIncreasePerLevel: number;
@@ -136,5 +158,16 @@ export const gameConfig: GameConfig = {
     bulletHeight: 5,
     maxBullets: 4,
   },
+  particles: {
+    perBrick: 8,
+    poolSize: 160,
+    minSpeed: 30,
+    maxSpeed: 90,
+    gravity: 220,
+    lifetime: 0.6,
+    size: 2,
+  },
+  screens: { levelCompleteSeconds: 2.5, gameOverDelaySeconds: 1 },
+  audio: { defaultVolume: 0.5, effectsGain: 0.25, musicGain: 0.1 },
   levels: { speedIncreasePerLevel: 0.04, speedIncreasePerLoop: 0.15 },
 };

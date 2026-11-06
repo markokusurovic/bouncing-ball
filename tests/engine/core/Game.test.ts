@@ -10,10 +10,11 @@ import {
   Fire,
   MoveRight,
   MoveTo,
+  Mute,
   Pause,
 } from '../../../src/engine/input/commands';
 import type { LevelGrid } from '../../../src/engine/levels/LevelLoader';
-import { FakeInput, FakeRenderer, fixedRng } from '../../fakes';
+import { FakeAudio, FakeInput, FakeRenderer, fixedRng } from '../../fakes';
 
 const DT = 1 / 120;
 /** One normal brick at the top-left: x 4–28, y 32–40. */
@@ -25,10 +26,12 @@ function setup(
 ) {
   const input = new FakeInput();
   const renderer = new FakeRenderer();
+  const audio = new FakeAudio();
   const game = new Game({
     renderer,
     input,
     rng: fixedRng(0.5),
+    audio,
     config,
     levels,
   });
@@ -42,9 +45,18 @@ function setup(
   game.events.on('levelStarted', record('levelStarted'));
   game.events.on('levelCleared', record('levelCleared'));
   game.events.on('gameOver', record('gameOver'));
-  game.newGame();
-  log.length = 0;
-  return { game, input, renderer, log };
+  game.events.on('stateChanged', record('stateChanged'));
+  game.start();
+  return { game, input, renderer, audio, log };
+}
+
+/** A game already past the menu, with the log cleared. */
+function playing(config?: GameConfig, levels?: readonly LevelGrid[]) {
+  const context = setup(config, levels);
+  context.game.newGame();
+  context.log.length = 0;
+  context.audio.calls.length = 0;
+  return context;
 }
 
 function ball(game: Game): Ball {
@@ -76,17 +88,30 @@ function hitTheBrick(game: Game): void {
 }
 
 describe('Game', () => {
-  it('starts a new game on level 1 with 3 lives and no score', () => {
-    const { game } = setup();
+  it('opens on the menu with the first level as a backdrop', () => {
+    const { game, input, log } = setup();
+    expect(game.state).toBe('menu');
+    expect(log).toEqual(['stateChanged {"state":"menu"}']);
+    expect(game.playfield.bricks).toHaveLength(1);
+    input.push(new MoveTo(10));
+    game.update(DT);
+    expect(game.playfield.paddle.centerX).toBe(gameConfig.view.width / 2);
+  });
+
+  it('starts a new game on Fire with 3 lives and no score', () => {
+    const { game, input, audio } = setup();
+    input.push(Fire);
+    game.update(DT);
+    expect(game.state).toBe('playing');
     expect(game.lives).toBe(3);
     expect(game.level).toBe(1);
     expect(game.scoring.score).toBe(0);
-    expect(game.playfield.bricks).toHaveLength(1);
     expect(ball(game).stuck).toBe(true);
+    expect(audio.calls).toContain('music on');
   });
 
   it('moves the paddle and launches the ball through commands', () => {
-    const { game, input } = setup();
+    const { game, input, audio } = playing();
     const start = game.playfield.paddle.x;
     input.push(MoveRight);
     game.update(DT);
@@ -96,66 +121,82 @@ describe('Game', () => {
     input.push(new MoveTo(50), Fire);
     game.update(DT);
     expect(ball(game).stuck).toBe(false);
-    expect(ball(game).vy).toBeLessThan(0);
+    expect(audio.calls).toEqual(['launch']);
   });
 
   it('loses a life when the ball falls out', () => {
-    const { game, log } = setup();
+    const { game, log, audio } = playing();
     loseBall(game);
     expect(game.lives).toBe(2);
     expect(log).toEqual(['livesChanged {"lives":2}']);
+    expect(audio.calls).toEqual(['lose']);
   });
 
-  it('ends the game after the last life and restarts on Fire', () => {
-    const { game, input, log } = setup();
+  it('shows game over after the last life, then the menu after a delay', () => {
+    const { game, input, log } = playing();
     loseBall(game);
     loseBall(game);
     loseBall(game);
-    expect(game.isOver).toBe(true);
-    expect(log.at(-1)).toBe('gameOver {"score":0,"level":1}');
+    expect(game.state).toBe('gameOver');
+    expect(log.slice(-2)).toEqual([
+      'gameOver {"score":0,"level":1}',
+      'stateChanged {"state":"gameOver"}',
+    ]);
 
-    input.push(Pause, MoveRight);
-    const paddleX = game.playfield.paddle.x;
+    input.push(Fire, Pause);
     game.update(DT);
-    expect(game.isPaused).toBe(false);
-    expect(game.playfield.paddle.x).toBe(paddleX);
-
+    expect(game.state).toBe('gameOver');
+    run(game, 120);
     input.push(Fire);
     game.update(DT);
-    expect(game.isOver).toBe(false);
+    expect(game.state).toBe('menu');
+    input.push(Fire);
+    game.update(DT);
     expect(game.lives).toBe(3);
   });
 
-  it('clears a level, adds the bonus and starts the next one faster', () => {
-    const { game, log } = setup();
+  it('shows the level-clear screen, then starts the next level faster', () => {
+    const { game, log } = playing();
     const levelOneSpeed = game.playfield.speed;
     hitTheBrick(game);
+    expect(game.state).toBe('levelComplete');
     expect(log).toEqual([
       'levelCleared {"level":1,"lives":3}',
-      'levelStarted {"level":2}',
+      'stateChanged {"state":"levelComplete"}',
     ]);
-    expect(game.level).toBe(2);
     expect(game.scoring.score).toBe(50 + 1000 + 3 * 500);
+    run(game, 120 * 3);
+    expect(game.state).toBe('playing');
+    expect(game.level).toBe(2);
     expect(game.playfield.speed).toBeGreaterThan(levelOneSpeed);
     expect(ball(game).stuck).toBe(true);
   });
 
+  it('skips the level-clear screen on Fire', () => {
+    const { game, input } = playing();
+    hitTheBrick(game);
+    input.push(Fire);
+    game.update(DT);
+    expect(game.state).toBe('playing');
+    expect(game.level).toBe(2);
+  });
+
   it('awards an extra life at the score threshold', () => {
     const config = { ...gameConfig, lives: { start: 3, extraLifeEvery: 50 } };
-    const { game } = setup(config, [['1...........1']]);
+    const { game } = playing(config, [['1...........1']]);
     hitTheBrick(game);
     expect(game.lives).toBe(4);
   });
 
   it('freezes everything while paused and resumes on the next Pause', () => {
-    const { game, input } = setup();
+    const { game, input, audio } = playing();
     const b = ball(game);
     b.launch({ x: 50, y: -50 });
     b.x = 100;
     b.y = 100;
     input.push(Pause);
     game.update(DT);
-    expect(game.isPaused).toBe(true);
+    expect(game.state).toBe('paused');
     const paddleX = game.playfield.paddle.x;
     input.push(new MoveTo(10), MoveRight, Fire);
     run(game, 10);
@@ -164,15 +205,31 @@ describe('Game', () => {
 
     input.push(Pause);
     game.update(DT);
-    expect(game.isPaused).toBe(false);
+    expect(game.state).toBe('playing');
     expect(b.x).toBeGreaterThan(100);
+    expect(audio.calls).toEqual(['music off', 'music on']);
   });
 
-  it('renders the playfield', () => {
-    const { game, renderer } = setup();
+  it('toggles mute through the sound director', () => {
+    const { game, input, audio } = playing();
+    input.push(Mute);
+    game.update(DT);
+    expect(audio.calls).toEqual(['mute']);
+  });
+
+  it('renders the playfield, then particles from destroyed bricks', () => {
+    const { game, renderer } = playing(gameConfig, [
+      ONE_BRICK,
+      ['....1........'],
+    ]);
+    hitTheBrick(game);
+    game.update(DT);
     game.render();
     expect(renderer.calls[0]).toEqual({ op: 'clear', color: 'playfield' });
-    expect(renderer.calls[1]).toMatchObject({ color: 'brick1' });
+    expect(renderer.calls.at(-1)).toMatchObject({
+      op: 'rect',
+      color: 'brick1',
+    });
   });
 
   it('uses the real levels by default', () => {
@@ -180,8 +237,8 @@ describe('Game', () => {
       renderer: new FakeRenderer(),
       input: new FakeInput(),
       rng: fixedRng(0.5),
+      audio: new FakeAudio(),
     });
-    game.newGame();
     expect(game.playfield.bricks.length).toBeGreaterThan(20);
   });
 });
