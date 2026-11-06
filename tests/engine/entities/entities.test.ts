@@ -3,6 +3,18 @@ import { Ball } from '../../../src/engine/entities/Ball';
 import { Paddle } from '../../../src/engine/entities/Paddle';
 
 describe('Paddle', () => {
+  it('resizes around its center and stays inside the field', () => {
+    const paddle = new Paddle(40, 6, 222, 320);
+    paddle.resize(60);
+    expect(paddle).toMatchObject({ x: 130, width: 60 });
+    paddle.moveTo(0);
+    paddle.resize(40);
+    expect(paddle.x).toBe(10);
+    paddle.moveTo(320);
+    paddle.resize(80);
+    expect(paddle.x).toBe(240);
+  });
+
   it('starts centered', () => {
     const paddle = new Paddle(40, 6, 222, 320);
     expect(paddle.x).toBe(140);

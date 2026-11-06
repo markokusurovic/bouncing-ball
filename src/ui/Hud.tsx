@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import type { PowerUpType } from '../engine/powerups/PowerUp';
 import { palette } from '../theme/palette';
 
 export interface HudState {
@@ -6,6 +7,8 @@ export interface HudState {
   readonly lives: number;
   readonly level: number;
   readonly multiplier: number;
+  /** Timed power-ups currently running. */
+  readonly powerUps: readonly PowerUpType[];
   readonly gameOver: boolean;
 }
 
@@ -14,6 +17,7 @@ export const initialHud: HudState = {
   lives: 0,
   level: 1,
   multiplier: 1,
+  powerUps: [],
   gameOver: false,
 };
 
@@ -44,7 +48,12 @@ export function Hud({ hud, scale, height }: HudProps): ReactElement {
             <span style={{ color: palette.hudAccent }}> ×{hud.multiplier}</span>
           )}
         </span>
-        <span>Level {hud.level}</span>
+        <span>
+          Level {hud.level}
+          <span style={{ color: palette.hudAccent }}>
+            {hud.powerUps.map((type) => ` ${type}`)}
+          </span>
+        </span>
         <span>Lives {hud.lives}</span>
       </div>
       {hud.gameOver && (

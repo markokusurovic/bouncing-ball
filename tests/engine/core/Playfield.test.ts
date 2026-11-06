@@ -257,3 +257,128 @@ describe('Playfield: bricks', () => {
     ]);
   });
 });
+
+describe('Playfield: power-ups', () => {
+  /** rng 0.1 always drops a capsule, and index 0 makes it Wide. */
+  it('drops a capsule from a destroyed brick that the paddle can catch', () => {
+    const target = brick(148, 50);
+    const { field } = setup({ rng: 0.1, bricks: [target] });
+    fly(field, 160, 70, 0, -SPEED);
+    run(field, 10);
+    const capsule = field.capsules.items.find((c) => c.active);
+    expect(capsule).toMatchObject({ type: 'wide' });
+    run(field, 120 * 4);
+    expect(capsule?.active).toBe(false);
+    expect(field.paddle.width).toBe(60);
+    expect(field.powerUps.isActive('wide')).toBe(true);
+  });
+
+  it('lets a missed capsule fall out', () => {
+    const { field } = setup({ rng: 0.1, bricks: [brick(4, 50)] });
+    field.movePaddleTo(300);
+    fly(field, 16, 70, 0, -SPEED);
+    run(field, 120 * 5);
+    expect(field.capsules.items.some((c) => c.active)).toBe(false);
+    expect(field.paddle.width).toBe(40);
+  });
+
+  it('rescales flying balls when the speed factor changes', () => {
+    const { field } = setup();
+    const ball = fly(field, 100, 100, 90, -120);
+    field.setSpeedFactor(0.6);
+    expect(Math.hypot(ball.vx, ball.vy)).toBeCloseTo(SPEED * 0.6);
+    expect(field.ballSpeed).toBeCloseTo(SPEED * 0.6);
+    field.setSpeedFactor(1);
+    expect(Math.hypot(ball.vx, ball.vy)).toBeCloseTo(SPEED);
+  });
+
+  it('splits into three balls, costing a life only when all are lost', () => {
+    const { field, log } = setup();
+    fly(field, 100, 200, 0, SPEED);
+    field.splitBalls();
+    expect(field.balls).toHaveLength(3);
+    for (const ball of field.balls) {
+      expect(Math.hypot(ball.vx, ball.vy)).toBeCloseTo(SPEED);
+      expect(ball.vy).toBeGreaterThan(0);
+    }
+    field.movePaddleTo(300);
+    run(field, 120);
+    expect(log).toEqual(['ballLost']);
+    expect(field.balls).toHaveLength(1);
+  });
+
+  it('caps the number of balls and keeps split balls stuck when waiting', () => {
+    const { field } = setup();
+    for (let i = 0; i < 5; i++) field.splitBalls();
+    expect(field.balls).toHaveLength(gameConfig.powerUps.multiMaxBalls);
+    expect(field.balls.every((ball) => ball.stuck)).toBe(true);
+  });
+
+  it('fires the laser at most once per cooldown', () => {
+    const { field } = setup();
+    fly(field, 100, 100, 0, -SPEED);
+    field.fire();
+    expect(field.bullets.items.some((b) => b.active)).toBe(false);
+    field.setLaser(true);
+    field.fire();
+    field.fire();
+    expect(field.bullets.items.filter((b) => b.active)).toHaveLength(1);
+    run(field, 121);
+    field.fire();
+    expect(field.bullets.items.filter((b) => b.active)).toHaveLength(1);
+  });
+
+  it('stops a bullet at the first brick in its path', () => {
+    const near = brick(148, 120);
+    const far = brick(148, 60, 'metal');
+    const { field, log } = setup({ bricks: [far, near] });
+    // A ball rolling sideways below the bricks stays in play the whole test.
+    fly(field, 10, 160, SPEED, 0);
+    field.setLaser(true);
+    field.fire();
+    run(field, 121);
+    expect(near.destroyed).toBe(true);
+    expect(log).toEqual(['brickDestroyed']);
+    field.fire();
+    run(field, 120);
+    expect(log).toEqual(['brickDestroyed', 'brickHit']);
+    expect(field.bullets.items.some((b) => b.active)).toBe(false);
+  });
+
+  it('lets a bullet that hits nothing leave at the top', () => {
+    const { field } = setup();
+    fly(field, 10, 100, 0, -SPEED);
+    field.setLaser(true);
+    field.fire();
+    run(field, 120);
+    expect(field.bullets.items.some((b) => b.active)).toBe(false);
+  });
+
+  it('ends power-ups when the last ball is lost', () => {
+    const { field } = setup();
+    field.powerUps.activate('wide');
+    field.powerUps.activate('laser');
+    fly(field, 10, 235, 0, SPEED);
+    run(field, 30);
+    expect(field.paddle.width).toBe(40);
+    expect(field.laserEnabled).toBe(false);
+  });
+
+  it('draws capsules, bullets and the laser paddle', () => {
+    const { field } = setup();
+    field.capsules.acquire()?.drop('slow', 100, 100);
+    field.setLaser(true);
+    fly(field, 10, 100, 0, -SPEED);
+    field.fire();
+    const renderer = new FakeRenderer();
+    field.render(renderer);
+    const colors = renderer.calls.map((call) => call.color);
+    expect(colors).toEqual([
+      'playfield',
+      'powerSlow',
+      'bullet',
+      'paddleLaser',
+      'ball',
+    ]);
+  });
+});

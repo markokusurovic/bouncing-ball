@@ -21,6 +21,15 @@ export interface MovingCircle {
   readonly radius: number;
 }
 
+export function rectsOverlap(a: Rect, b: Rect): boolean {
+  return (
+    a.x < b.x + b.width &&
+    b.x < a.x + a.width &&
+    a.y < b.y + b.height &&
+    b.y < a.y + a.height
+  );
+}
+
 export type Side = 'left' | 'right' | 'top' | 'bottom';
 
 /**

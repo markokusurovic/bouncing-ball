@@ -77,6 +77,19 @@ export function GameCanvas(): ReactElement {
       events.on('levelStarted', ({ level }) =>
         setHud((h) => ({ ...h, level, gameOver: false })),
       ),
+      events.on('powerUpCollected', ({ type }) =>
+        setHud((h) =>
+          type === 'multi' || h.powerUps.includes(type)
+            ? h
+            : { ...h, powerUps: [...h.powerUps, type] },
+        ),
+      ),
+      events.on('powerUpExpired', ({ type }) =>
+        setHud((h) => ({
+          ...h,
+          powerUps: h.powerUps.filter((t) => t !== type),
+        })),
+      ),
       events.on('gameOver', () => setHud((h) => ({ ...h, gameOver: true }))),
     ];
     game.newGame();

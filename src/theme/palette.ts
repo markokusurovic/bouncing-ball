@@ -16,6 +16,12 @@ export const palette = {
   brick4: '#38b764',
   brickSilver: '#94b0c2',
   brickMetal: '#566c86',
+  paddleLaser: '#a7f070',
+  bullet: '#a7f070',
+  powerWide: '#41a6f6',
+  powerMulti: '#f4f4f4',
+  powerSlow: '#73eff7',
+  powerLaser: '#a7f070',
   hudText: '#f4f4f4',
   hudAccent: '#ffcd75',
 } as const;

@@ -63,6 +63,31 @@ export interface GameConfig {
     readonly levelClearBonus: number;
     readonly bonusPerLife: number;
   };
+  readonly powerUps: {
+    /** Chance that a destroyed brick drops a capsule (0–1). */
+    readonly dropChance: number;
+    readonly capsuleWidth: number;
+    readonly capsuleHeight: number;
+    /** Falling speed of capsules in px/s. */
+    readonly capsuleSpeed: number;
+    readonly maxCapsules: number;
+    readonly wideFactor: number;
+    readonly wideDuration: number;
+    readonly slowFactor: number;
+    readonly slowDuration: number;
+    /** Multi splits a ball into this many. */
+    readonly multiBallCount: number;
+    readonly multiMaxBalls: number;
+    /** Angle between the split balls. */
+    readonly multiSpreadDegrees: number;
+    readonly laserDuration: number;
+    /** Shortest time between two laser shots. */
+    readonly laserCooldown: number;
+    readonly bulletSpeed: number;
+    readonly bulletWidth: number;
+    readonly bulletHeight: number;
+    readonly maxBullets: number;
+  };
   readonly levels: {
     /** Ball speed grows by this fraction per level within a loop. */
     readonly speedIncreasePerLevel: number;
@@ -91,5 +116,25 @@ export const gameConfig: GameConfig = {
   },
   lives: { start: 3, extraLifeEvery: 10_000 },
   scoring: { maxComboMultiplier: 5, levelClearBonus: 1000, bonusPerLife: 500 },
+  powerUps: {
+    dropChance: 0.15,
+    capsuleWidth: 16,
+    capsuleHeight: 7,
+    capsuleSpeed: 50,
+    maxCapsules: 6,
+    wideFactor: 1.5,
+    wideDuration: 15,
+    slowFactor: 0.6,
+    slowDuration: 10,
+    multiBallCount: 3,
+    multiMaxBalls: 9,
+    multiSpreadDegrees: 25,
+    laserDuration: 15,
+    laserCooldown: 1,
+    bulletSpeed: 300,
+    bulletWidth: 2,
+    bulletHeight: 5,
+    maxBullets: 4,
+  },
   levels: { speedIncreasePerLevel: 0.04, speedIncreasePerLoop: 0.15 },
 };
