@@ -19,6 +19,9 @@ describe('key map', () => {
     PRESSED_KEYS['Escape']?.execute(actions);
     PRESSED_KEYS['Enter']?.execute(actions);
     PRESSED_KEYS['KeyM']?.execute(actions);
+    PRESSED_KEYS['ArrowUp']?.execute(actions);
+    PRESSED_KEYS['ArrowDown']?.execute(actions);
+    PRESSED_KEYS['Backspace']?.execute(actions);
     expect(actions.calls).toEqual([
       'moveBy -1',
       'moveBy 1',
@@ -27,6 +30,9 @@ describe('key map', () => {
       'pause',
       'fire',
       'mute',
+      'letter 1',
+      'letter -1',
+      'back',
     ]);
   });
 });

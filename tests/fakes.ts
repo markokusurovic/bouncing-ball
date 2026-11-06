@@ -1,6 +1,8 @@
 import type { SoundId } from '../src/engine/audio/sounds';
+import type { HighScore } from '../src/engine/scoring/highScores';
 import type {
   AudioPlayer,
+  HighScoreRepository,
   InputSource,
   Renderer,
   Rng,
@@ -90,5 +92,23 @@ export class RecordingActions implements GameActions {
   }
   toggleMute(): void {
     this.calls.push('mute');
+  }
+  changeLetter(direction: -1 | 1): void {
+    this.calls.push(`letter ${direction}`);
+  }
+  previousLetter(): void {
+    this.calls.push('back');
+  }
+}
+
+export class FakeHighScores implements HighScoreRepository {
+  saved: (readonly HighScore[])[] = [];
+  constructor(private entries: HighScore[] = []) {}
+  load(): HighScore[] {
+    return [...this.entries];
+  }
+  save(entries: readonly HighScore[]): void {
+    this.entries = [...entries];
+    this.saved.push(entries);
   }
 }

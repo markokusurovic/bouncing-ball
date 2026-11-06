@@ -1,5 +1,8 @@
 import {
   Fire,
+  LetterBack,
+  LetterDown,
+  LetterUp,
   MoveLeft,
   MoveRight,
   Mute,
@@ -18,6 +21,9 @@ export const PRESSED_KEYS: Readonly<Record<string, Command>> = {
   Space: Fire,
   Enter: Fire,
   KeyM: Mute,
+  ArrowUp: LetterUp,
+  ArrowDown: LetterDown,
+  Backspace: LetterBack,
   KeyP: Pause,
   Escape: Pause,
 };

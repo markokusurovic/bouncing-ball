@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { WebAudioPlayer } from '../audio/WebAudioPlayer';
+import type { HighScore } from '../engine/scoring/highScores';
+import { LocalStorageHighScoreRepository } from '../storage/LocalStorageHighScoreRepository';
 import { gameConfig } from '../engine/config/gameConfig';
 import { Game } from '../engine/core/Game';
 import { GameLoop } from '../engine/core/GameLoop';
@@ -11,7 +13,7 @@ import { computeScale } from '../render/scaling';
 import { palette } from '../theme/palette';
 import { attachBrowserInput } from './attachBrowserInput';
 import { Hud, initialHud, type HudState } from './Hud';
-import { Screens } from './Screens';
+import { Screens, type InitialsState } from './Screens';
 
 const {
   width: VIEW_WIDTH,
@@ -52,6 +54,11 @@ export function GameCanvas(): ReactElement {
   // The HUD and current screen are plain React state, fed by game events.
   const [hud, setHud] = useState<HudState>(initialHud);
   const [screen, setScreen] = useState<StateName>('menu');
+  const [highScores, setHighScores] = useState<readonly HighScore[]>([]);
+  const [initials, setInitials] = useState<InitialsState>({
+    initials: '',
+    cursor: 0,
+  });
   // A function passed to useState runs only on the first render ("lazy
   // initial state"), so one audio player lives as long as the component.
   const [audio] = useState(() => new WebAudioPlayer(browserStorage()));
@@ -81,6 +88,7 @@ export function GameCanvas(): ReactElement {
       input,
       rng: createSeededRng(Date.now()),
       audio,
+      highScores: new LocalStorageHighScoreRepository(browserStorage()),
     });
     const loop = new GameLoop(game, {
       request: (callback) => requestAnimationFrame(callback),
@@ -115,6 +123,8 @@ export function GameCanvas(): ReactElement {
         })),
       ),
       events.on('stateChanged', ({ state }) => setScreen(state)),
+      events.on('highScoresChanged', ({ entries }) => setHighScores(entries)),
+      events.on('initialsChanged', (value) => setInitials(value)),
       // connectAudio toggles the player first, so this reads the new value.
       events.on('muteToggled', () => setMuted(audio.muted)),
     ];
@@ -162,6 +172,8 @@ export function GameCanvas(): ReactElement {
       <Screens
         state={screen}
         hud={hud}
+        highScores={highScores}
+        initials={initials}
         scale={scale}
         volume={volume}
         muted={muted}

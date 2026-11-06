@@ -1,5 +1,6 @@
 import type { PaletteKey } from '../../theme/palette';
 import type { SoundId } from '../audio/sounds';
+import type { HighScore } from '../scoring/highScores';
 import type { Command } from '../input/commands';
 
 /** Every sprite the engine can ask for; the pixel maps live in `render/sprites/`. */
@@ -52,4 +53,10 @@ export interface InputSource {
 export interface Rng {
   /** Uniform random number in [0, 1). */
   next(): number;
+}
+
+/** Where the high-score table is kept. Implemented with localStorage. */
+export interface HighScoreRepository {
+  load(): HighScore[];
+  save(entries: readonly HighScore[]): void;
 }
