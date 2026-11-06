@@ -8,6 +8,8 @@ export const palette = {
   playfield: '#1a1c2c',
   /** Frame drawn around the scaled canvas. */
   canvasBorder: '#333c57',
+  paddle: '#41a6f6',
+  ball: '#f4f4f4',
 } as const;
 
 export type PaletteKey = keyof typeof palette;

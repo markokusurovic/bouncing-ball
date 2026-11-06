@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { gameConfig } from '../engine/config/gameConfig';
+import { Game } from '../engine/core/Game';
+import { GameLoop } from '../engine/core/GameLoop';
+import { createSeededRng } from '../engine/core/Rng';
+import { InputBuffer } from '../engine/input/InputBuffer';
+import { CanvasRenderer } from '../render/CanvasRenderer';
 import { computeScale } from '../render/scaling';
 import { palette } from '../theme/palette';
+import { attachBrowserInput } from './attachBrowserInput';
 
 const { width: VIEW_WIDTH, height: VIEW_HEIGHT } = gameConfig.view;
 /** Space kept free around the canvas (border and page margin), in CSS pixels. */
@@ -28,13 +34,33 @@ export function GameCanvas(): ReactElement {
   const [scale, setScale] = useState<number>(currentScale);
 
   // useEffect runs after React has put the canvas in the DOM. The empty
-  // dependency array means: run once on mount, clean up once on unmount.
+  // dependency array means: set the game up once on mount. The function we
+  // return is the cleanup: React calls it on unmount. In development,
+  // StrictMode mounts, unmounts and mounts again on purpose to catch missing
+  // cleanups; without stopping the loop and removing listeners here we would
+  // end up with two games running at once.
   useEffect(() => {
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-    ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = palette.playfield;
-    ctx.fillRect(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+
+    const input = new InputBuffer();
+    const detachInput = attachBrowserInput(canvas, input);
+    const game = new Game({
+      renderer: new CanvasRenderer(ctx, VIEW_WIDTH, VIEW_HEIGHT),
+      input,
+      rng: createSeededRng(Date.now()),
+    });
+    const loop = new GameLoop(game, {
+      request: (callback) => requestAnimationFrame(callback),
+      cancel: (handle) => cancelAnimationFrame(handle),
+    });
+    loop.start();
+
+    return () => {
+      loop.stop();
+      detachInput();
+    };
   }, []);
 
   // A second effect keeps the scale in sync with the window size. The returned
