@@ -110,7 +110,7 @@ export class Game implements LoopTarget, GameActions {
   fire(): void {
     if (this.paused) return;
     if (this.over) this.newGame();
-    else this.playfield.launch();
+    else this.playfield.fire();
   }
 
   togglePause(): void {

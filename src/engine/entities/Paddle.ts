@@ -4,14 +4,27 @@ import { clamp } from '../physics/vector';
 export class Paddle implements Rect {
   /** Left edge. */
   x: number;
+  private currentWidth: number;
 
   constructor(
-    readonly width: number,
+    width: number,
     readonly height: number,
     readonly y: number,
     private readonly fieldWidth: number,
   ) {
+    this.currentWidth = width;
     this.x = (fieldWidth - width) / 2;
+  }
+
+  get width(): number {
+    return this.currentWidth;
+  }
+
+  /** Changes the width around the current center, staying inside the field. */
+  resize(width: number): void {
+    const center = this.centerX;
+    this.currentWidth = width;
+    this.moveTo(center);
   }
 
   get centerX(): number {

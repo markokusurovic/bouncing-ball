@@ -4,6 +4,7 @@ import {
   circleRectSide,
   enforceMinVerticalAngle,
   paddleBounceVelocity,
+  rectsOverlap,
   type MovingCircle,
 } from '../../../src/engine/physics/collision';
 import { degToRad } from '../../../src/engine/physics/vector';
@@ -122,5 +123,19 @@ describe('enforceMinVerticalAngle', () => {
     const zero = { vx: 0, vy: 0 };
     enforceMinVerticalAngle(zero, min);
     expect(zero).toEqual({ vx: 0, vy: 0 });
+  });
+});
+
+describe('rectsOverlap', () => {
+  it('detects overlap but not touching edges', () => {
+    expect(rectsOverlap(rect, { x: 130, y: 105, width: 20, height: 20 })).toBe(
+      true,
+    );
+    expect(rectsOverlap(rect, { x: 140, y: 100, width: 5, height: 5 })).toBe(
+      false,
+    );
+    expect(rectsOverlap(rect, { x: 100, y: 110, width: 5, height: 5 })).toBe(
+      false,
+    );
   });
 });
