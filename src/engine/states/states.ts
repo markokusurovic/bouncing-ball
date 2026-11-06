@@ -68,7 +68,7 @@ export class LevelCompleteState extends BaseState {
   }
 }
 
-/** Fire returns to the menu after a short delay. */
+/** After a short delay, Fire moves on to initials entry or the menu. */
 export class GameOverState extends BaseState {
   readonly name = 'gameOver';
   private timeLeft = 0;
@@ -88,6 +88,63 @@ export class GameOverState extends BaseState {
     this.timeLeft -= dt;
   }
   override fire(): void {
-    if (this.timeLeft <= 0) this.ctx.setState('menu');
+    if (this.timeLeft <= 0) this.ctx.leaveGameOver();
+  }
+}
+
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+/**
+ * Arcade-style initials: Up/Down cycle the current letter, Fire confirms it,
+ * Backspace goes back. Confirming the last letter saves the score.
+ */
+export class HighScoreEntryState extends BaseState {
+  readonly name = 'highScoreEntry';
+  private letters: number[] = [];
+  private cursor = 0;
+
+  constructor(
+    ctx: StateContext,
+    private readonly config: GameConfig,
+  ) {
+    super(ctx);
+  }
+
+  get initials(): string {
+    return this.letters.map((i) => ALPHABET.charAt(i)).join('');
+  }
+
+  override enter(): void {
+    this.letters = Array.from(
+      { length: this.config.highScores.initialsLength },
+      () => 0,
+    );
+    this.cursor = 0;
+    this.announce();
+  }
+  override changeLetter(direction: -1 | 1): void {
+    const current = this.letters[this.cursor] ?? 0;
+    this.letters[this.cursor] =
+      (current + direction + ALPHABET.length) % ALPHABET.length;
+    this.announce();
+  }
+  override previousLetter(): void {
+    this.cursor = Math.max(0, this.cursor - 1);
+    this.announce();
+  }
+  override fire(): void {
+    if (this.cursor < this.letters.length - 1) {
+      this.cursor++;
+      this.announce();
+    } else {
+      this.ctx.submitInitials(this.initials);
+    }
+  }
+
+  private announce(): void {
+    this.ctx.events.emit('initialsChanged', {
+      initials: this.initials,
+      cursor: this.cursor,
+    });
   }
 }

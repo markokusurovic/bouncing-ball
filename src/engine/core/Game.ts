@@ -5,10 +5,12 @@ import type { GameActions } from '../input/commands';
 import { BrickFactory } from '../levels/BrickFactory';
 import { levels as defaultLevels } from '../levels/data';
 import { LevelLoader, type LevelGrid } from '../levels/LevelLoader';
+import { insertScore, qualifies, type HighScore } from '../scoring/highScores';
 import { ScoreManager } from '../scoring/ScoreManager';
 import type { GameState, StateContext, StateName } from '../states/GameState';
 import {
   GameOverState,
+  HighScoreEntryState,
   LevelCompleteState,
   MenuState,
   PausedState,
@@ -17,7 +19,13 @@ import {
 import { EventBus } from './EventBus';
 import type { GameEvents } from './events';
 import type { LoopTarget } from './GameLoop';
-import type { AudioPlayer, InputSource, Renderer, Rng } from './interfaces';
+import type {
+  AudioPlayer,
+  HighScoreRepository,
+  InputSource,
+  Renderer,
+  Rng,
+} from './interfaces';
 import { Playfield } from './Playfield';
 
 export interface GameDependencies {
@@ -25,6 +33,7 @@ export interface GameDependencies {
   readonly input: InputSource;
   readonly rng: Rng;
   readonly audio: AudioPlayer;
+  readonly highScores: HighScoreRepository;
   readonly config?: GameConfig;
   readonly levels?: readonly LevelGrid[];
 }
@@ -44,6 +53,8 @@ export class Game implements LoopTarget, GameActions, StateContext {
   private readonly config: GameConfig;
   private readonly levels: LevelLoader;
   private readonly states: Readonly<Record<StateName, GameState>>;
+  private readonly highScoreRepository: HighScoreRepository;
+  private highScoreTable: HighScore[];
   private current: GameState;
   private livesLeft = 0;
   private levelNumber = 1;
@@ -55,9 +66,15 @@ export class Game implements LoopTarget, GameActions, StateContext {
     input,
     rng,
     audio,
+    highScores,
     config = gameConfig,
     levels = defaultLevels,
   }: GameDependencies) {
+    this.highScoreRepository = highScores;
+    this.highScoreTable = highScores
+      .load()
+      .sort((a, b) => b.score - a.score)
+      .slice(0, config.highScores.maxEntries);
     this.renderer = renderer;
     this.input = input;
     this.config = config;
@@ -74,6 +91,7 @@ export class Game implements LoopTarget, GameActions, StateContext {
       paused: new PausedState(this),
       levelComplete: new LevelCompleteState(this, config),
       gameOver: new GameOverState(this, config),
+      highScoreEntry: new HighScoreEntryState(this, config),
     };
     this.current = this.states.menu;
     // The first level sits behind the menu as a backdrop.
@@ -84,6 +102,10 @@ export class Game implements LoopTarget, GameActions, StateContext {
     return this.current.name;
   }
 
+  get highScores(): readonly HighScore[] {
+    return this.highScoreTable;
+  }
+
   get lives(): number {
     return this.livesLeft;
   }
@@ -92,8 +114,30 @@ export class Game implements LoopTarget, GameActions, StateContext {
     return this.levelNumber;
   }
 
-  /** Shows the menu and announces it. */
+  /** Announces the high scores and shows the menu. */
   start(): void {
+    this.events.emit('highScoresChanged', { entries: this.highScoreTable });
+    this.setState('menu');
+  }
+
+  leaveGameOver(): void {
+    const { maxEntries } = this.config.highScores;
+    const isHighScore = qualifies(
+      this.highScoreTable,
+      this.scoring.score,
+      maxEntries,
+    );
+    this.setState(isHighScore ? 'highScoreEntry' : 'menu');
+  }
+
+  submitInitials(initials: string): void {
+    this.highScoreTable = insertScore(
+      this.highScoreTable,
+      { initials, score: this.scoring.score, level: this.levelNumber },
+      this.config.highScores.maxEntries,
+    );
+    this.highScoreRepository.save(this.highScoreTable);
+    this.events.emit('highScoresChanged', { entries: this.highScoreTable });
     this.setState('menu');
   }
 
@@ -153,6 +197,14 @@ export class Game implements LoopTarget, GameActions, StateContext {
 
   toggleMute(): void {
     this.events.emit('muteToggled', {});
+  }
+
+  changeLetter(direction: -1 | 1): void {
+    this.current.changeLetter(direction);
+  }
+
+  previousLetter(): void {
+    this.current.previousLetter();
   }
 
   private startLevel(levelNumber: number): void {

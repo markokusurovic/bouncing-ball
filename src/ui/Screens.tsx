@@ -1,11 +1,20 @@
 import type { ReactElement, ReactNode } from 'react';
+import type { HighScore } from '../engine/scoring/highScores';
 import type { StateName } from '../engine/states/GameState';
 import { palette } from '../theme/palette';
+import { HighScoreTable } from './HighScoreTable';
 import type { HudState } from './Hud';
+
+export interface InitialsState {
+  readonly initials: string;
+  readonly cursor: number;
+}
 
 interface ScreensProps {
   readonly state: StateName;
   readonly hud: HudState;
+  readonly highScores: readonly HighScore[];
+  readonly initials: InitialsState;
   readonly scale: number;
   readonly volume: number;
   readonly muted: boolean;
@@ -20,6 +29,8 @@ interface ScreensProps {
 export function Screens({
   state,
   hud,
+  highScores,
+  initials,
   scale,
   volume,
   muted,
@@ -38,9 +49,8 @@ export function Screens({
         <>
           {title('Bouncing Ball')}
           <span>Press Space or click to start</span>
-          <span style={{ marginTop: px(8) }}>
-            ← → or mouse: move · Space or click: launch and laser
-          </span>
+          <HighScoreTable entries={highScores} scale={scale} />
+          <span>← → or mouse: move · Space or click: launch and laser</span>
           <span>P or Esc: pause · M: mute</span>
           <label
             className="pointer-events-auto flex items-center"
@@ -74,6 +84,34 @@ export function Screens({
         <>
           {title(`Level ${hud.level} clear!`)}
           <span>Score {hud.score}</span>
+        </>
+      );
+      break;
+    case 'highScoreEntry':
+      content = (
+        <>
+          {title('New high score!')}
+          <span>
+            Score {hud.score} · Level {hud.level}
+          </span>
+          <span className="flex" style={{ fontSize: px(16), gap: px(4) }}>
+            {[...initials.initials].map((letter, i) => (
+              <span
+                // Letter slots are fixed positions, so the index is a stable key.
+                key={i}
+                style={{
+                  color:
+                    i === initials.cursor ? palette.hudAccent : palette.hudText,
+                  borderBottom: `${px(1)}px solid ${
+                    i === initials.cursor ? palette.hudAccent : 'transparent'
+                  }`,
+                }}
+              >
+                {letter}
+              </span>
+            ))}
+          </span>
+          <span>↑ ↓: letter · Space or click: next · Backspace: back</span>
         </>
       );
       break;

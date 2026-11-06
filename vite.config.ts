@@ -10,7 +10,11 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     coverage: {
       provider: 'v8',
-      include: ['src/engine/**/*.ts', 'src/render/**/*.ts'],
+      include: [
+        'src/engine/**/*.ts',
+        'src/render/**/*.ts',
+        'src/storage/**/*.ts',
+      ],
       thresholds: { lines: 80, functions: 80, branches: 80, statements: 80 },
     },
   },

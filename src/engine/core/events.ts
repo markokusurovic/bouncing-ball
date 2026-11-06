@@ -1,4 +1,5 @@
 import type { PowerUpType } from '../powerups/PowerUp';
+import type { HighScore } from '../scoring/highScores';
 import type { StateName } from '../states/GameState';
 import type { PaletteKey } from '../../theme/palette';
 
@@ -22,4 +23,7 @@ export type GameEvents = {
   gameOver: { score: number; level: number };
   stateChanged: { state: StateName };
   muteToggled: Record<string, never>;
+  highScoresChanged: { entries: readonly HighScore[] };
+  /** Initials being typed on the high-score screen; `cursor` is the active letter. */
+  initialsChanged: { initials: string; cursor: number };
 };

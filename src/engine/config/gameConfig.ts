@@ -104,6 +104,10 @@ export interface GameConfig {
     /** Fire is ignored this long on the game-over screen, so it isn't skipped by accident. */
     readonly gameOverDelaySeconds: number;
   };
+  readonly highScores: {
+    readonly maxEntries: number;
+    readonly initialsLength: number;
+  };
   readonly audio: {
     readonly defaultVolume: number;
     /** Loudness of sound effects and music relative to the master volume. */
@@ -168,6 +172,7 @@ export const gameConfig: GameConfig = {
     size: 2,
   },
   screens: { levelCompleteSeconds: 2.5, gameOverDelaySeconds: 1 },
+  highScores: { maxEntries: 10, initialsLength: 3 },
   audio: { defaultVolume: 0.5, effectsGain: 0.25, musicGain: 0.1 },
   levels: { speedIncreasePerLevel: 0.04, speedIncreasePerLoop: 0.15 },
 };

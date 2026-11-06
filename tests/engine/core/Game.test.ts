@@ -8,13 +8,23 @@ import type { GameEvents } from '../../../src/engine/core/events';
 import type { Ball } from '../../../src/engine/entities/Ball';
 import {
   Fire,
+  LetterBack,
+  LetterDown,
+  LetterUp,
   MoveRight,
   MoveTo,
   Mute,
   Pause,
 } from '../../../src/engine/input/commands';
 import type { LevelGrid } from '../../../src/engine/levels/LevelLoader';
-import { FakeAudio, FakeInput, FakeRenderer, fixedRng } from '../../fakes';
+import type { HighScore } from '../../../src/engine/scoring/highScores';
+import {
+  FakeAudio,
+  FakeHighScores,
+  FakeInput,
+  FakeRenderer,
+  fixedRng,
+} from '../../fakes';
 
 const DT = 1 / 120;
 /** One normal brick at the top-left: x 4–28, y 32–40. */
@@ -23,15 +33,18 @@ const ONE_BRICK: LevelGrid = ['1............'];
 function setup(
   config: GameConfig = gameConfig,
   levels: readonly LevelGrid[] = [ONE_BRICK, ONE_BRICK],
+  scores: HighScore[] = [],
 ) {
   const input = new FakeInput();
   const renderer = new FakeRenderer();
   const audio = new FakeAudio();
+  const highScores = new FakeHighScores(scores);
   const game = new Game({
     renderer,
     input,
     rng: fixedRng(0.5),
     audio,
+    highScores,
     config,
     levels,
   });
@@ -47,7 +60,7 @@ function setup(
   game.events.on('gameOver', record('gameOver'));
   game.events.on('stateChanged', record('stateChanged'));
   game.start();
-  return { game, input, renderer, audio, log };
+  return { game, input, renderer, audio, highScores, log };
 }
 
 /** A game already past the menu, with the log cleared. */
@@ -92,6 +105,7 @@ describe('Game', () => {
     const { game, input, log } = setup();
     expect(game.state).toBe('menu');
     expect(log).toEqual(['stateChanged {"state":"menu"}']);
+    expect(game.highScores).toEqual([]);
     expect(game.playfield.bricks).toHaveLength(1);
     input.push(new MoveTo(10));
     game.update(DT);
@@ -238,7 +252,86 @@ describe('Game', () => {
       input: new FakeInput(),
       rng: fixedRng(0.5),
       audio: new FakeAudio(),
+      highScores: new FakeHighScores(),
     });
     expect(game.playfield.bricks.length).toBeGreaterThan(20);
+  });
+});
+
+describe('Game: high scores', () => {
+  const entry = (initials: string, score: number): HighScore => ({
+    initials,
+    score,
+    level: 1,
+  });
+
+  /** Plays one brick (50 points), then loses all lives and leaves game over. */
+  function scoreAndDie(game: Game, input: FakeInput): void {
+    game.newGame();
+    const b = ball(game);
+    b.launch({ x: 0, y: -150 });
+    b.x = 16;
+    b.y = 50;
+    run(game, 30);
+    input.push(Fire);
+    game.update(DT);
+    loseBall(game);
+    loseBall(game);
+    loseBall(game);
+    run(game, 121);
+    input.push(Fire);
+    game.update(DT);
+  }
+
+  it('loads the saved table sorted and trimmed', () => {
+    const many = Array.from({ length: 12 }, (_, i) => entry('AAA', i * 10));
+    const { game } = setup(gameConfig, undefined, many);
+    expect(game.highScores).toHaveLength(10);
+    expect(game.highScores[0]?.score).toBe(110);
+  });
+
+  it('asks for initials after a qualifying game and saves them', () => {
+    const levels = [['1...........1']];
+    const { game, input, highScores } = setup(gameConfig, levels, [
+      entry('OLD', 100),
+    ]);
+    const initials: string[] = [];
+    game.events.on('initialsChanged', ({ initials: value, cursor }) =>
+      initials.push(`${value}@${cursor}`),
+    );
+    const tables: number[] = [];
+    game.events.on('highScoresChanged', ({ entries }) =>
+      tables.push(entries.length),
+    );
+    scoreAndDie(game, input);
+    expect(game.state).toBe('highScoreEntry');
+    expect(initials).toEqual(['AAA@0']);
+
+    // B, then Z and Y (wrapping backwards), back to the first letter, then C.
+    input.push(LetterUp, Fire, LetterDown, LetterDown, LetterBack, LetterUp);
+    game.update(DT);
+    expect(initials.at(-1)).toBe('CYA@0');
+    input.push(Fire, Fire, Fire);
+    game.update(DT);
+
+    expect(game.state).toBe('menu');
+    expect(game.highScores).toEqual([entry('OLD', 100), entry('CYA', 50)]);
+    expect(highScores.saved).toHaveLength(1);
+    expect(tables).toEqual([2]);
+  });
+
+  it('skips initials when the score does not make the table', () => {
+    const full = Array.from({ length: 10 }, () => entry('TOP', 99_999));
+    const { game, input, highScores } = setup(gameConfig, undefined, full);
+    scoreAndDie(game, input);
+    expect(game.state).toBe('menu');
+    expect(highScores.saved).toEqual([]);
+  });
+
+  it('ignores letter commands outside the initials screen', () => {
+    const { game, input } = playing();
+    input.push(LetterUp, LetterBack);
+    game.update(DT);
+    expect(game.state).toBe('playing');
   });
 });
