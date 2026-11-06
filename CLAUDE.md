@@ -6,7 +6,8 @@ An original Arkanoid-style brick-breaker game with a retro pixel-art look.
 - **Rendering:** native HTML5 Canvas API inside a single React component (`GameCanvas`), driven by a native `requestAnimationFrame` loop.
 - **No game engines** (no Phaser, Pixi, etc.) and **no DOM elements for game entities**. React and Tailwind are only for the shell, menus and HUD overlays.
 - **Issue tracking:** YouTrack Cloud via MCP (`.mcp.json`, git-ignored), Kanban board **Bouncing Ball**.
-- **Repo:** GitHub `markokusurovic/bouncing-ball`, managed with the `gh` CLI.
+- **Repo:** GitHub `markokusurovic/bouncing-ball` (public), managed with the `gh` CLI.
+- **Hosting:** GitHub Pages at https://markokusurovic.github.io/bouncing-ball/
 
 ## How to work with me (the user)
 - Present a plan first. Implement only after the plan is agreed.
@@ -108,11 +109,17 @@ tests/             # mirrors src/ structure
 - GitHub Actions (`.github/workflows/ci.yml`) runs typecheck, lint, format check, tests with coverage and build on pushes and PRs.
 - Never merge a PR with a failing check.
 - Link the YouTrack issue ID in the PR title or description.
+- The repo is **public**: never commit secrets, tokens or `.mcp.json`.
+
+## Deployment (GitHub Pages)
+- `.github/workflows/deploy.yml` builds and deploys `dist/` to GitHub Pages on every push to `main`, using the official `actions/upload-pages-artifact` and `actions/deploy-pages` actions. Pages source is set to "GitHub Actions" in repo settings.
+- The site is served from a subpath, so `vite.config.ts` must set `base: '/bouncing-ball/'`. Never use absolute asset paths like `/foo.png`; import assets or use `import.meta.env.BASE_URL`.
+- After a merge to `main`, check the deploy run and open the live URL to confirm the game loads.
 
 ## Roadmap (one PR each)
-1. Project setup: Vite, React, TS, Tailwind, Vitest, oxlint, Prettier, CI, empty canvas
+1. Project setup: Vite, React, TS, Tailwind, Vitest, oxlint, Prettier, CI, GitHub Pages deploy, empty canvas live online
 2. Core engine: game loop, paddle, ball, walls, collisions, input. A ball you can bounce
 3. Bricks and levels: level loader, brick types, all 10 levels, lives, score and combo
 4. Power-ups: Wide, Multi, Slow, Laser, falling capsules
 5. Polish: pixel-art sprites, particles, state screens, sound and music
-6. High scores and release: table, initials entry, final release
+6. High scores and release: table, initials entry, README with live link, final release
