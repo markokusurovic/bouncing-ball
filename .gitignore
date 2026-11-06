@@ -1,0 +1,9 @@
+.mcp.json
+.claude/settings.local.json
+
+# Node
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
