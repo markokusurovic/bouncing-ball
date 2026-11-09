@@ -102,13 +102,25 @@ export class RecordingActions implements GameActions {
 }
 
 export class FakeHighScores implements HighScoreRepository {
-  saved: (readonly HighScore[])[] = [];
+  added: HighScore[] = [];
+  /** Set to make every call reject, like an unreachable server. */
+  failing = false;
+  loads = 0;
   constructor(private entries: HighScore[] = []) {}
-  load(): HighScore[] {
-    return [...this.entries];
+  load(): Promise<HighScore[]> {
+    this.loads++;
+    if (this.failing) return Promise.reject(new Error('offline'));
+    return Promise.resolve([...this.entries]);
   }
-  save(entries: readonly HighScore[]): void {
-    this.entries = [...entries];
-    this.saved.push(entries);
+  add(entry: HighScore): Promise<void> {
+    if (this.failing) return Promise.reject(new Error('offline'));
+    this.entries.push(entry);
+    this.added.push(entry);
+    return Promise.resolve();
   }
+}
+
+/** Lets pending promise callbacks run. */
+export function flushPromises(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
 }

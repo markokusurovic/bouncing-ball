@@ -4,6 +4,8 @@ import { palette } from '../theme/palette';
 
 interface HighScoreTableProps {
   readonly entries: readonly HighScore[];
+  /** The table is being fetched; shown only while there is nothing to show. */
+  readonly loading: boolean;
   /** Size of one internal pixel in CSS pixels. */
   readonly scale: number;
 }
@@ -11,9 +13,14 @@ interface HighScoreTableProps {
 /** The top-10 table shown on the menu. */
 export function HighScoreTable({
   entries,
+  loading,
   scale,
 }: HighScoreTableProps): ReactElement {
-  if (entries.length === 0) return <span>No high scores yet</span>;
+  if (entries.length === 0) {
+    return (
+      <span>{loading ? 'Loading high scores…' : 'No high scores yet'}</span>
+    );
+  }
   const cell = { padding: `0 ${4 * scale}px` };
   return (
     <table className="tabular-nums" style={{ lineHeight: 1.25 }}>

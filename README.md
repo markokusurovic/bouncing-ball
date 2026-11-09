@@ -6,13 +6,15 @@ A retro pixel-art brick-breaker for the browser, built with React, TypeScript an
 
 ## How to play
 
-| Action                  | Keyboard                                       | Mouse        |
-| ----------------------- | ---------------------------------------------- | ------------ |
-| Move the paddle         | `←` `→`                                        | move         |
-| Launch ball, fire laser | `Space` or `Enter`                             | click        |
-| Pause / resume          | `P` or `Esc`                                   |              |
-| Mute                    | `M`                                            |              |
-| High-score initials     | `↑` `↓` letter, `Space` next, `Backspace` back | click = next |
+| Action                  | Keyboard                                       | Mouse        | Touch                       |
+| ----------------------- | ---------------------------------------------- | ------------ | --------------------------- |
+| Move the paddle         | `←` `→`                                        | move         | drag                        |
+| Launch ball, fire laser | `Space` or `Enter`                             | click        | tap                         |
+| Pause / resume          | `P` or `Esc`                                   |              | `❚❚` button                 |
+| Mute                    | `M`                                            |              | `♪` button                  |
+| High-score initials     | `↑` `↓` letter, `Space` next, `Backspace` back | click = next | `▲` `▼` `Back` `OK` buttons |
+
+On phones, play in landscape.
 
 - You start with **3 lives** and get an extra one every **10,000 points**.
 - Break bricks in a row without touching the paddle to build a **combo up to ×5**.
@@ -34,7 +36,9 @@ Some bricks drop a falling capsule. Catch it with the paddle:
 | **S**   | Slow     | Ball speed ×0.6 for 10 s                                         |
 | **L**   | Laser    | Fire straight up, once per second, for 15 s                      |
 
-The top 10 scores are saved in your browser.
+The top 10 is **shared online** (Supabase). When it can't be reached, the game shows the scores saved in your browser instead.
+
+To use online scores in development, put `VITE_SUPABASE_URL` and `VITE_SUPABASE_KEY` (the public publishable key) in `.env.local`. The deploy reads them from GitHub repository variables. Without them the game uses only the local table.
 
 ## Development
 

@@ -23,7 +23,8 @@ export type GameEvents = {
   gameOver: { score: number; level: number };
   stateChanged: { state: StateName };
   muteToggled: Record<string, never>;
-  highScoresChanged: { entries: readonly HighScore[] };
+  /** `loading` is true while the table is fetched from the repository. */
+  highScoresChanged: { entries: readonly HighScore[]; loading: boolean };
   /** Initials being typed on the high-score screen; `cursor` is the active letter. */
   initialsChanged: { initials: string; cursor: number };
 };

@@ -21,6 +21,7 @@ import type { HighScore } from '../../../src/engine/scoring/highScores';
 import {
   FakeAudio,
   FakeHighScores,
+  flushPromises,
   FakeInput,
   FakeRenderer,
   fixedRng,
@@ -283,18 +284,51 @@ describe('Game: high scores', () => {
     game.update(DT);
   }
 
-  it('loads the saved table sorted and trimmed', () => {
+  it('loads the saved table sorted and trimmed, announcing loading', async () => {
     const many = Array.from({ length: 12 }, (_, i) => entry('AAA', i * 10));
     const { game } = setup(gameConfig, undefined, many);
+    const loading: boolean[] = [];
+    game.events.on('highScoresChanged', (e) => loading.push(e.loading));
+    expect(game.highScores).toEqual([]);
+    await flushPromises();
     expect(game.highScores).toHaveLength(10);
     expect(game.highScores[0]?.score).toBe(110);
+    expect(loading).toEqual([false]);
   });
 
-  it('asks for initials after a qualifying game and saves them', () => {
+  it('keeps the current table when loading fails', async () => {
+    const { game, highScores } = setup(gameConfig, undefined, [
+      entry('OLD', 9),
+    ]);
+    await flushPromises();
+    highScores.failing = true;
+    const loading: boolean[] = [];
+    game.events.on('highScoresChanged', (e) => loading.push(e.loading));
+    await game.reloadHighScores();
+    expect(game.highScores).toEqual([entry('OLD', 9)]);
+    expect(loading).toEqual([true, false]);
+  });
+
+  it('keeps a new entry in the session table when storing it fails', async () => {
+    const levels = [['1...........1']];
+    const { game, input, highScores } = setup(gameConfig, levels);
+    await flushPromises();
+    highScores.failing = true;
+    scoreAndDie(game, input);
+    input.push(Fire, Fire, Fire);
+    game.update(DT);
+    await flushPromises();
+    expect(game.state).toBe('menu');
+    expect(game.highScores).toEqual([entry('AAA', 50)]);
+    expect(highScores.loads).toBe(1);
+  });
+
+  it('asks for initials after a qualifying game and saves them', async () => {
     const levels = [['1...........1']];
     const { game, input, highScores } = setup(gameConfig, levels, [
       entry('OLD', 100),
     ]);
+    await flushPromises();
     const initials: string[] = [];
     game.events.on('initialsChanged', ({ initials: value, cursor }) =>
       initials.push(`${value}@${cursor}`),
@@ -316,16 +350,21 @@ describe('Game: high scores', () => {
 
     expect(game.state).toBe('menu');
     expect(game.highScores).toEqual([entry('OLD', 100), entry('CYA', 50)]);
-    expect(highScores.saved).toHaveLength(1);
     expect(tables).toEqual([2]);
+    // Stored, then the (possibly shared) table is fetched again.
+    await flushPromises();
+    expect(highScores.added).toEqual([entry('CYA', 50)]);
+    expect(highScores.loads).toBe(2);
+    expect(tables).toEqual([2, 2, 2]);
   });
 
-  it('skips initials when the score does not make the table', () => {
+  it('skips initials when the score does not make the table', async () => {
     const full = Array.from({ length: 10 }, () => entry('TOP', 99_999));
     const { game, input, highScores } = setup(gameConfig, undefined, full);
+    await flushPromises();
     scoreAndDie(game, input);
     expect(game.state).toBe('menu');
-    expect(highScores.saved).toEqual([]);
+    expect(highScores.added).toEqual([]);
   });
 
   it('ignores letter commands outside the initials screen', () => {

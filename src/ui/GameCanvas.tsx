@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { WebAudioPlayer } from '../audio/WebAudioPlayer';
 import type { HighScore } from '../engine/scoring/highScores';
+import type { HighScoreRepository } from '../engine/core/interfaces';
+import { FallbackHighScoreRepository } from '../storage/FallbackHighScoreRepository';
 import { LocalStorageHighScoreRepository } from '../storage/LocalStorageHighScoreRepository';
+import { SupabaseHighScoreRepository } from '../storage/SupabaseHighScoreRepository';
 import { gameConfig } from '../engine/config/gameConfig';
 import { Game } from '../engine/core/Game';
 import { GameLoop } from '../engine/core/GameLoop';
@@ -62,6 +65,28 @@ function browserStorage(): Storage | null {
 }
 
 /**
+ * The online table when Supabase is configured at build time (env vars
+ * `VITE_SUPABASE_URL` and `VITE_SUPABASE_KEY`), with the local one as fallback.
+ */
+function createHighScoreRepository(): HighScoreRepository {
+  const { maxEntries, requestTimeoutSeconds } = gameConfig.highScores;
+  const local = new LocalStorageHighScoreRepository(
+    browserStorage(),
+    maxEntries,
+  );
+  const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+  const key = import.meta.env.VITE_SUPABASE_KEY as string | undefined;
+  if (!url || !key) return local;
+  const online = new SupabaseHighScoreRepository({
+    url,
+    key,
+    maxEntries,
+    timeoutMs: requestTimeoutSeconds * 1000,
+  });
+  return new FallbackHighScoreRepository(online, local);
+}
+
+/**
  * The single canvas the game draws on. It always renders at the internal
  * 320×240 resolution and is scaled up by an integer factor with CSS. React
  * only draws the HUD and screen overlays on top of it.
@@ -81,6 +106,7 @@ export function GameCanvas(): ReactElement {
   const [hud, setHud] = useState<HudState>(initialHud);
   const [screen, setScreen] = useState<StateName>('menu');
   const [highScores, setHighScores] = useState<readonly HighScore[]>([]);
+  const [scoresLoading, setScoresLoading] = useState<boolean>(true);
   const [initials, setInitials] = useState<InitialsState>({
     initials: '',
     cursor: 0,
@@ -115,7 +141,7 @@ export function GameCanvas(): ReactElement {
       input,
       rng: createSeededRng(Date.now()),
       audio,
-      highScores: new LocalStorageHighScoreRepository(browserStorage()),
+      highScores: createHighScoreRepository(),
     });
     const loop = new GameLoop(game, {
       request: (callback) => requestAnimationFrame(callback),
@@ -150,7 +176,10 @@ export function GameCanvas(): ReactElement {
         })),
       ),
       events.on('stateChanged', ({ state }) => setScreen(state)),
-      events.on('highScoresChanged', ({ entries }) => setHighScores(entries)),
+      events.on('highScoresChanged', ({ entries, loading }) => {
+        setHighScores(entries);
+        setScoresLoading(loading);
+      }),
       events.on('initialsChanged', (value) => setInitials(value)),
       // connectAudio toggles the player first, so this reads the new value.
       events.on('muteToggled', () => setMuted(audio.muted)),
@@ -221,6 +250,7 @@ export function GameCanvas(): ReactElement {
           state={screen}
           hud={hud}
           highScores={highScores}
+          scoresLoading={scoresLoading}
           initials={initials}
           scale={scale}
           volume={volume}
