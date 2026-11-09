@@ -15,8 +15,19 @@ describe('computeScale', () => {
     expect(computeScale(1920, 500, 320, 240)).toBe(2);
   });
 
-  it('never goes below 1, even for tiny or negative space', () => {
-    expect(computeScale(100, 100, 320, 240)).toBe(1);
+  it('uses a fractional scale when the integer one would waste too much space', () => {
+    // A phone in landscape: integer scale 1 fills only 1 / 1.4 of the height.
+    expect(computeScale(800, 336, 320, 240)).toBeCloseTo(1.4);
+    // Smaller than the view itself: shrink instead of overflowing.
+    expect(computeScale(160, 120, 320, 240)).toBeCloseTo(0.5);
+  });
+
+  it('respects a custom minimum fill', () => {
+    expect(computeScale(800, 336, 320, 240, 0.5)).toBe(1);
+  });
+
+  it('falls back to 1 for empty or negative space', () => {
+    expect(computeScale(0, 0, 320, 240)).toBe(1);
     expect(computeScale(-50, -50, 320, 240)).toBe(1);
   });
 

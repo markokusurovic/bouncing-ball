@@ -1,6 +1,8 @@
 import type { ReactElement } from 'react';
+import { Mute, Pause, type Command } from '../engine/input/commands';
 import type { PowerUpType } from '../engine/powerups/PowerUp';
 import { palette } from '../theme/palette';
+import { TouchButton } from './TouchButton';
 
 export interface HudState {
   readonly score: number;
@@ -26,10 +28,20 @@ interface HudProps {
   readonly scale: number;
   /** Height of the HUD strip in internal pixels. */
   readonly height: number;
+  /** Show Pause and Mute buttons (no keyboard on phones). */
+  readonly touch: boolean;
+  readonly onPress: (command: Command) => void;
 }
 
 /** Score, combo, level, power-ups and lives over the top strip of the canvas. */
-export function Hud({ hud, muted, scale, height }: HudProps): ReactElement {
+export function Hud({
+  hud,
+  muted,
+  scale,
+  height,
+  touch,
+  onPress,
+}: HudProps): ReactElement {
   const accent = { color: palette.hudAccent };
   return (
     <div
@@ -49,9 +61,31 @@ export function Hud({ hud, muted, scale, height }: HudProps): ReactElement {
         Level {hud.level}
         <span style={accent}>{hud.powerUps.map((type) => ` ${type}`)}</span>
       </span>
-      <span>
-        {muted && <span style={accent}>Muted </span>}
-        Lives {hud.lives}
+      <span className="flex items-center" style={{ gap: 4 * scale }}>
+        <span>
+          {muted && <span style={accent}>Muted </span>}
+          Lives {hud.lives}
+        </span>
+        {touch && (
+          <>
+            <TouchButton
+              command={Mute}
+              onPress={onPress}
+              scale={scale}
+              label="Mute"
+            >
+              ♪
+            </TouchButton>
+            <TouchButton
+              command={Pause}
+              onPress={onPress}
+              scale={scale}
+              label="Pause"
+            >
+              ❚❚
+            </TouchButton>
+          </>
+        )}
       </span>
     </div>
   );
