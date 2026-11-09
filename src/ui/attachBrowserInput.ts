@@ -21,7 +21,10 @@ export function attachBrowserInput(
   const onPointerMove = (e: PointerEvent): void =>
     input.pointerMove(toViewX(e.clientX));
   const onPointerDown = (e: PointerEvent): void => {
-    if (e.button === 0) input.pointerDown();
+    if (e.button !== 0) return;
+    // A touch has no hover, so move the paddle to where the finger lands.
+    input.pointerMove(toViewX(e.clientX));
+    input.pointerDown();
   };
   const onBlur = (): void => input.releaseAll();
 

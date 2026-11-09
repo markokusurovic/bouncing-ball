@@ -6,6 +6,7 @@ import { gameConfig } from '../engine/config/gameConfig';
 import { Game } from '../engine/core/Game';
 import { GameLoop } from '../engine/core/GameLoop';
 import { createSeededRng } from '../engine/core/Rng';
+import type { Command } from '../engine/input/commands';
 import { InputBuffer } from '../engine/input/InputBuffer';
 import type { StateName } from '../engine/states/GameState';
 import { CanvasRenderer } from '../render/CanvasRenderer';
@@ -22,14 +23,34 @@ const {
 } = gameConfig.view;
 /** Space kept free around the canvas (border and page margin), in CSS pixels. */
 const MARGIN = 32;
+/** Smaller margin for phones, where every pixel counts. */
+const SMALL_MARGIN = 4;
+/** Below this window width or height (CSS pixels) the small margin is used. */
+const SMALL_SCREEN = { width: 640, height: 480 };
 
-function currentScale(): number {
-  return computeScale(
-    window.innerWidth - MARGIN,
-    window.innerHeight - MARGIN,
-    VIEW_WIDTH,
-    VIEW_HEIGHT,
-  );
+interface Viewport {
+  readonly scale: number;
+  /** The main pointer is a finger, so show touch texts and buttons. */
+  readonly touch: boolean;
+  /** Taller than wide: ask the player to rotate a touch device. */
+  readonly portrait: boolean;
+}
+
+function currentViewport(): Viewport {
+  const { innerWidth: w, innerHeight: h } = window;
+  const margin =
+    w < SMALL_SCREEN.width || h < SMALL_SCREEN.height ? SMALL_MARGIN : MARGIN;
+  return {
+    scale: computeScale(
+      w - margin,
+      h - margin,
+      VIEW_WIDTH,
+      VIEW_HEIGHT,
+      gameConfig.view.minIntegerScaleFill,
+    ),
+    touch: window.matchMedia('(pointer: coarse)').matches,
+    portrait: h > w,
+  };
 }
 
 function browserStorage(): Storage | null {
@@ -49,8 +70,13 @@ export function GameCanvas(): ReactElement {
   // useRef gives a stable handle to the real <canvas> DOM node, so we can draw
   // on it imperatively. Changing a ref never re-renders the component.
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  // useState holds the scale; updating it re-renders with the new CSS size.
-  const [scale, setScale] = useState<number>(currentScale);
+  // useState holds the viewport (scale, touch, orientation); updating it
+  // re-renders with the new CSS size and texts.
+  const [viewport, setViewport] = useState<Viewport>(currentViewport);
+  const { scale, touch, portrait } = viewport;
+  // One input buffer for the component's lifetime (lazy initial state, as for
+  // the audio player below), so the on-screen buttons can push commands too.
+  const [input] = useState(() => new InputBuffer());
   // The HUD and current screen are plain React state, fed by game events.
   const [hud, setHud] = useState<HudState>(initialHud);
   const [screen, setScreen] = useState<StateName>('menu');
@@ -80,8 +106,9 @@ export function GameCanvas(): ReactElement {
     const unlockAudio = (): void => audio.unlock();
     window.addEventListener('keydown', unlockAudio);
     window.addEventListener('pointerdown', unlockAudio);
+    // iOS Safari only lets audio start from touchend, not pointerdown.
+    window.addEventListener('touchend', unlockAudio);
 
-    const input = new InputBuffer();
     const detachInput = attachBrowserInput(canvas, input);
     const game = new Game({
       renderer: new CanvasRenderer(ctx, VIEW_WIDTH, VIEW_HEIGHT),
@@ -137,14 +164,15 @@ export function GameCanvas(): ReactElement {
       detachInput();
       window.removeEventListener('keydown', unlockAudio);
       window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('touchend', unlockAudio);
       for (const off of unsubscribe) off();
     };
-  }, [audio]);
+  }, [audio, input]);
 
-  // A second effect keeps the scale in sync with the window size. The returned
-  // function removes the listener when the component unmounts.
+  // A second effect keeps the viewport in sync with the window size and
+  // orientation. The returned function removes the listener on unmount.
   useEffect(() => {
-    const onResize = (): void => setScale(currentScale());
+    const onResize = (): void => setViewport(currentViewport());
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
@@ -154,31 +182,54 @@ export function GameCanvas(): ReactElement {
     setVolume(audio.volume);
   };
 
+  const press = (command: Command): void => input.press(command);
+
   return (
-    <div
-      className="relative border-2"
-      style={{ borderColor: palette.canvasBorder }}
-    >
-      <canvas
-        ref={canvasRef}
-        width={VIEW_WIDTH}
-        height={VIEW_HEIGHT}
-        className="block [image-rendering:pixelated]"
-        style={{ width: VIEW_WIDTH * scale, height: VIEW_HEIGHT * scale }}
-      />
-      {screen !== 'menu' && (
-        <Hud hud={hud} muted={muted} scale={scale} height={HUD_HEIGHT} />
+    <>
+      {touch && portrait && (
+        <p
+          className="mb-2 text-center font-mono text-sm font-bold uppercase"
+          style={{ color: palette.hudAccent }}
+        >
+          Rotate your device to landscape
+        </p>
       )}
-      <Screens
-        state={screen}
-        hud={hud}
-        highScores={highScores}
-        initials={initials}
-        scale={scale}
-        volume={volume}
-        muted={muted}
-        onVolumeChange={changeVolume}
-      />
-    </div>
+      {/* touch-none stops the page from scrolling or zooming while a finger
+          drags the paddle; select-none stops long-press text selection. */}
+      <div
+        className="relative touch-none border-2 select-none"
+        style={{ borderColor: palette.canvasBorder }}
+      >
+        <canvas
+          ref={canvasRef}
+          width={VIEW_WIDTH}
+          height={VIEW_HEIGHT}
+          className="block [image-rendering:pixelated]"
+          style={{ width: VIEW_WIDTH * scale, height: VIEW_HEIGHT * scale }}
+        />
+        {screen !== 'menu' && (
+          <Hud
+            hud={hud}
+            muted={muted}
+            scale={scale}
+            height={HUD_HEIGHT}
+            touch={touch}
+            onPress={press}
+          />
+        )}
+        <Screens
+          state={screen}
+          hud={hud}
+          highScores={highScores}
+          initials={initials}
+          scale={scale}
+          volume={volume}
+          muted={muted}
+          touch={touch}
+          onVolumeChange={changeVolume}
+          onPress={press}
+        />
+      </div>
+    </>
   );
 }

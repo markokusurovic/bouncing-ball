@@ -39,6 +39,11 @@ export class InputBuffer implements InputSource {
     this.pressed.push(Fire);
   }
 
+  /** Queue a command directly, e.g. from an on-screen touch button. */
+  press(command: Command): void {
+    this.pressed.push(command);
+  }
+
   /** Forget held keys, e.g. when the window loses focus. */
   releaseAll(): void {
     this.held.clear();

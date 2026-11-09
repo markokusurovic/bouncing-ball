@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { InputBuffer } from '../../../src/engine/input/InputBuffer';
 import { HELD_KEYS, PRESSED_KEYS } from '../../../src/engine/input/keyMap';
+import { Mute, Pause } from '../../../src/engine/input/commands';
 import { RecordingActions } from '../../fakes';
 
 function run(input: InputBuffer): string[] {
@@ -64,6 +65,14 @@ describe('InputBuffer', () => {
     input.pointerMove(10);
     input.pointerMove(42);
     expect(run(input)).toEqual(['moveTo 42']);
+    expect(run(input)).toEqual([]);
+  });
+
+  it('queues commands pressed directly, e.g. by touch buttons', () => {
+    const input = new InputBuffer();
+    input.press(Pause);
+    input.press(Mute);
+    expect(run(input)).toEqual(['pause', 'mute']);
     expect(run(input)).toEqual([]);
   });
 

@@ -8,6 +8,11 @@ export interface GameConfig {
     readonly height: number;
     /** Strip at the top kept free for the HUD; the ceiling sits below it. */
     readonly hudHeight: number;
+    /**
+     * Integer scaling is used only while it fills at least this share of the
+     * available space; below that (small screens) a fractional scale is used.
+     */
+    readonly minIntegerScaleFill: number;
   };
   readonly loop: {
     /** Fixed number of physics updates per second. */
@@ -123,7 +128,7 @@ export interface GameConfig {
 }
 
 export const gameConfig: GameConfig = {
-  view: { width: 320, height: 240, hudHeight: 16 },
+  view: { width: 320, height: 240, hudHeight: 16, minIntegerScaleFill: 0.8 },
   loop: { updatesPerSecond: 120, maxFrameSeconds: 0.25 },
   paddle: { width: 40, height: 6, y: 222, speed: 240 },
   ball: { radius: 3, speed: 150, maxStep: 1.5, launchSpreadDegrees: 15 },

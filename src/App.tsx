@@ -5,7 +5,7 @@ import { GameCanvas } from './ui/GameCanvas';
 export function App(): ReactElement {
   return (
     <main
-      className="flex min-h-screen items-center justify-center"
+      className="flex min-h-screen flex-col items-center justify-center"
       style={{ backgroundColor: palette.pageBackground }}
     >
       <GameCanvas />

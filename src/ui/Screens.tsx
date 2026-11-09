@@ -1,9 +1,18 @@
 import type { ReactElement, ReactNode } from 'react';
+import {
+  Fire,
+  LetterBack,
+  LetterDown,
+  LetterUp,
+  Pause,
+  type Command,
+} from '../engine/input/commands';
 import type { HighScore } from '../engine/scoring/highScores';
 import type { StateName } from '../engine/states/GameState';
 import { palette } from '../theme/palette';
 import { HighScoreTable } from './HighScoreTable';
 import type { HudState } from './Hud';
+import { TouchButton } from './TouchButton';
 
 export interface InitialsState {
   readonly initials: string;
@@ -18,7 +27,10 @@ interface ScreensProps {
   readonly scale: number;
   readonly volume: number;
   readonly muted: boolean;
+  /** Touch device: show tap texts and on-screen buttons. */
+  readonly touch: boolean;
   readonly onVolumeChange: (volume: number) => void;
+  readonly onPress: (command: Command) => void;
 }
 
 /**
@@ -34,12 +46,29 @@ export function Screens({
   scale,
   volume,
   muted,
+  touch,
   onVolumeChange,
+  onPress,
 }: ScreensProps): ReactElement | null {
   const px = (n: number): number => n * scale;
   const title = (text: string): ReactElement => (
     <span style={{ fontSize: px(16), color: palette.hudAccent }}>{text}</span>
   );
+  const button = (
+    command: Command,
+    label: string,
+    text: string,
+  ): ReactElement => (
+    <TouchButton
+      command={command}
+      onPress={onPress}
+      scale={scale}
+      label={label}
+    >
+      {text}
+    </TouchButton>
+  );
+  const tapOr = (keys: string): string => (touch ? 'Tap' : keys);
   let content: ReactNode;
   switch (state) {
     case 'playing':
@@ -48,10 +77,16 @@ export function Screens({
       content = (
         <>
           {title('Bouncing Ball')}
-          <span>Press Space or click to start</span>
+          <span>{tapOr('Press Space or click')} to start</span>
           <HighScoreTable entries={highScores} scale={scale} />
-          <span>← → or mouse: move · Space or click: launch and laser</span>
-          <span>P or Esc: pause · M: mute</span>
+          {touch ? (
+            <span>Drag: move · Tap: launch and laser</span>
+          ) : (
+            <>
+              <span>← → or mouse: move · Space or click: launch and laser</span>
+              <span>P or Esc: pause · M: mute</span>
+            </>
+          )}
           <label
             className="pointer-events-auto flex items-center"
             style={{ gap: px(4) }}
@@ -75,7 +110,11 @@ export function Screens({
       content = (
         <>
           {title('Paused')}
-          <span>Press P or Esc to resume</span>
+          {touch ? (
+            button(Pause, 'Resume', 'Resume')
+          ) : (
+            <span>Press P or Esc to resume</span>
+          )}
         </>
       );
       break;
@@ -99,6 +138,13 @@ export function Screens({
               <span
                 // Letter slots are fixed positions, so the index is a stable key.
                 key={i}
+                // Tapping the current letter cycles it, like the ↑ key.
+                className={
+                  i === initials.cursor ? 'pointer-events-auto' : undefined
+                }
+                onPointerDown={
+                  i === initials.cursor ? () => onPress(LetterUp) : undefined
+                }
                 style={{
                   color:
                     i === initials.cursor ? palette.hudAccent : palette.hudText,
@@ -111,7 +157,16 @@ export function Screens({
               </span>
             ))}
           </span>
-          <span>↑ ↓: letter · Space or click: next · Backspace: back</span>
+          {touch ? (
+            <span className="flex" style={{ gap: px(4) }}>
+              {button(LetterUp, 'Next letter', '▲')}
+              {button(LetterDown, 'Previous letter', '▼')}
+              {button(LetterBack, 'Back', 'Back')}
+              {button(Fire, 'OK', 'OK')}
+            </span>
+          ) : (
+            <span>↑ ↓: letter · Space or click: next · Backspace: back</span>
+          )}
         </>
       );
       break;
@@ -122,7 +177,7 @@ export function Screens({
           <span>
             Score {hud.score} · Level {hud.level}
           </span>
-          <span>Press Space or click</span>
+          <span>{tapOr('Press Space or click')} to continue</span>
         </>
       );
       break;
