@@ -23,6 +23,7 @@ interface ScreensProps {
   readonly state: StateName;
   readonly hud: HudState;
   readonly highScores: readonly HighScore[];
+  readonly scoresLoading: boolean;
   readonly initials: InitialsState;
   readonly scale: number;
   readonly volume: number;
@@ -42,6 +43,7 @@ export function Screens({
   state,
   hud,
   highScores,
+  scoresLoading,
   initials,
   scale,
   volume,
@@ -78,7 +80,11 @@ export function Screens({
         <>
           {title('Bouncing Ball')}
           <span>{tapOr('Press Space or click')} to start</span>
-          <HighScoreTable entries={highScores} scale={scale} />
+          <HighScoreTable
+            entries={highScores}
+            loading={scoresLoading}
+            scale={scale}
+          />
           {touch ? (
             <span>Drag: move · Tap: launch and laser</span>
           ) : (

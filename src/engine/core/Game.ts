@@ -71,10 +71,7 @@ export class Game implements LoopTarget, GameActions, StateContext {
     levels = defaultLevels,
   }: GameDependencies) {
     this.highScoreRepository = highScores;
-    this.highScoreTable = highScores
-      .load()
-      .sort((a, b) => b.score - a.score)
-      .slice(0, config.highScores.maxEntries);
+    this.highScoreTable = [];
     this.renderer = renderer;
     this.input = input;
     this.config = config;
@@ -114,10 +111,27 @@ export class Game implements LoopTarget, GameActions, StateContext {
     return this.levelNumber;
   }
 
-  /** Announces the high scores and shows the menu. */
+  /** Shows the menu and starts loading the high scores. */
   start(): void {
-    this.events.emit('highScoresChanged', { entries: this.highScoreTable });
     this.setState('menu');
+    void this.reloadHighScores();
+  }
+
+  /**
+   * Fetches the table from the repository. If that fails, the current table
+   * stays. The returned promise never rejects.
+   */
+  async reloadHighScores(): Promise<void> {
+    this.emitHighScores(true);
+    try {
+      const entries = await this.highScoreRepository.load();
+      this.highScoreTable = [...entries]
+        .sort((a, b) => b.score - a.score)
+        .slice(0, this.config.highScores.maxEntries);
+    } catch {
+      // Keep what we have; the repository decides about fallbacks.
+    }
+    this.emitHighScores(false);
   }
 
   leaveGameOver(): void {
@@ -130,15 +144,36 @@ export class Game implements LoopTarget, GameActions, StateContext {
     this.setState(isHighScore ? 'highScoreEntry' : 'menu');
   }
 
+  /**
+   * Shows the new entry right away, then stores it and reloads the table, which
+   * may have changed meanwhile if it is shared online.
+   */
   submitInitials(initials: string): void {
+    const entry = {
+      initials,
+      score: this.scoring.score,
+      level: this.levelNumber,
+    };
     this.highScoreTable = insertScore(
       this.highScoreTable,
-      { initials, score: this.scoring.score, level: this.levelNumber },
+      entry,
       this.config.highScores.maxEntries,
     );
-    this.highScoreRepository.save(this.highScoreTable);
-    this.events.emit('highScoresChanged', { entries: this.highScoreTable });
+    this.emitHighScores(false);
     this.setState('menu');
+    this.highScoreRepository.add(entry).then(
+      () => this.reloadHighScores(),
+      () => {
+        // Not stored; the entry stays in this session's table.
+      },
+    );
+  }
+
+  private emitHighScores(loading: boolean): void {
+    this.events.emit('highScoresChanged', {
+      entries: this.highScoreTable,
+      loading,
+    });
   }
 
   setState(name: StateName): void {

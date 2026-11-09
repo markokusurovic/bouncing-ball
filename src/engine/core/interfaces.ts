@@ -55,8 +55,12 @@ export interface Rng {
   next(): number;
 }
 
-/** Where the high-score table is kept. Implemented with localStorage. */
+/**
+ * Where the high-score table is kept (localStorage, or online with a local
+ * fallback). Both methods may reject when the store can't be reached.
+ */
 export interface HighScoreRepository {
-  load(): HighScore[];
-  save(entries: readonly HighScore[]): void;
+  /** The best entries, best first. */
+  load(): Promise<HighScore[]>;
+  add(entry: HighScore): Promise<void>;
 }

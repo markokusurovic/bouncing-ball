@@ -112,6 +112,8 @@ export interface GameConfig {
   readonly highScores: {
     readonly maxEntries: number;
     readonly initialsLength: number;
+    /** Online requests slower than this fall back to the local table. */
+    readonly requestTimeoutSeconds: number;
   };
   readonly audio: {
     readonly defaultVolume: number;
@@ -177,7 +179,7 @@ export const gameConfig: GameConfig = {
     size: 2,
   },
   screens: { levelCompleteSeconds: 2.5, gameOverDelaySeconds: 1 },
-  highScores: { maxEntries: 10, initialsLength: 3 },
+  highScores: { maxEntries: 10, initialsLength: 3, requestTimeoutSeconds: 5 },
   audio: { defaultVolume: 0.5, effectsGain: 0.25, musicGain: 0.1 },
   levels: { speedIncreasePerLevel: 0.04, speedIncreasePerLoop: 0.15 },
 };

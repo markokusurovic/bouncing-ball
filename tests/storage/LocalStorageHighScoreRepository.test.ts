@@ -14,23 +14,26 @@ class MemoryStorage {
 const KEY = 'bouncing-ball.highScores';
 
 describe('LocalStorageHighScoreRepository', () => {
-  it('saves and loads entries as JSON', () => {
+  it('adds entries in order, keeps at most the max and loads them', async () => {
     const storage = new MemoryStorage();
-    const repository = new LocalStorageHighScoreRepository(storage);
-    expect(repository.load()).toEqual([]);
-    repository.save([{ initials: 'ABC', score: 120, level: 3 }]);
-    expect(repository.load()).toEqual([
+    const repository = new LocalStorageHighScoreRepository(storage, 2);
+    expect(await repository.load()).toEqual([]);
+    await repository.add({ initials: 'ABC', score: 120, level: 3 });
+    await repository.add({ initials: 'TOP', score: 500, level: 5 });
+    await repository.add({ initials: 'LOW', score: 10, level: 1 });
+    expect(await repository.load()).toEqual([
+      { initials: 'TOP', score: 500, level: 5 },
       { initials: 'ABC', score: 120, level: 3 },
     ]);
   });
 
-  it('ignores broken or tampered data', () => {
+  it('ignores broken or tampered data', async () => {
     const storage = new MemoryStorage();
-    const repository = new LocalStorageHighScoreRepository(storage);
+    const repository = new LocalStorageHighScoreRepository(storage, 10);
     storage.setItem(KEY, '{not json');
-    expect(repository.load()).toEqual([]);
+    expect(await repository.load()).toEqual([]);
     storage.setItem(KEY, '{"a":1}');
-    expect(repository.load()).toEqual([]);
+    expect(await repository.load()).toEqual([]);
     storage.setItem(
       KEY,
       JSON.stringify([
@@ -40,11 +43,15 @@ describe('LocalStorageHighScoreRepository', () => {
         null,
       ]),
     );
-    expect(repository.load()).toEqual([{ initials: 'OK', score: 5, level: 1 }]);
+    expect(await repository.load()).toEqual([
+      { initials: 'OK', score: 5, level: 1 },
+    ]);
   });
 
-  it('survives unavailable or failing storage', () => {
-    expect(new LocalStorageHighScoreRepository(null).load()).toEqual([]);
+  it('survives unavailable or failing storage', async () => {
+    expect(await new LocalStorageHighScoreRepository(null, 10).load()).toEqual(
+      [],
+    );
     const failing = {
       getItem: (): string => {
         throw new Error('blocked');
@@ -53,8 +60,10 @@ describe('LocalStorageHighScoreRepository', () => {
         throw new Error('full');
       },
     };
-    const repository = new LocalStorageHighScoreRepository(failing);
-    expect(repository.load()).toEqual([]);
-    expect(() => repository.save([])).not.toThrow();
+    const repository = new LocalStorageHighScoreRepository(failing, 10);
+    expect(await repository.load()).toEqual([]);
+    await expect(
+      repository.add({ initials: 'A', score: 1, level: 1 }),
+    ).resolves.toBeUndefined();
   });
 });
